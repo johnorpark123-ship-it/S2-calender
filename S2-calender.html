@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="ko" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S2팀 일정 캘린더</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FullCalendar JS -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <!-- Tippy.js (마우스 호버 툴팁용) -->
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/animations/scale.css"/>
+    <!-- SheetJS (엑셀 파싱용) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .fc { --fc-border-color: #e2e8f0; --fc-button-bg-color: #059669; --fc-button-border-color: #059669; --fc-button-hover-bg-color: #047857; --fc-button-hover-border-color: #047857; --fc-button-active-bg-color: #065f46; --fc-today-bg-color: #f0fdf4; }
+        .fc-theme-standard th { background-color: #f8fafc; padding: 8px 0; font-weight: 600; color: #334155; }
+        .fc-event { cursor: pointer; border: none; padding: 2px 4px; font-size: 11px; font-weight: 600; border-radius: 4px; }
+        .fc-daygrid-day-number { color: #475569; font-weight: 500; font-size: 12px; padding: 8px !important; }
+        .fc-header-toolbar { margin-bottom: 1.5rem !important; }
+        .fc-toolbar-title { font-size: 1.25rem !important; font-weight: 700; color: #0f172a; }
+        
+        .holiday-event { text-align: center; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+        /* 목록 보기(List View)에서 시간/종일 텍스트 영역을 완전히 숨김 */
+        .fc-list-event-time { display: none !important; }
+
+        /* 오늘 날짜 직관적 강조 */
+        .fc-theme-standard .fc-day-today { 
+            background-color: #ecfdf5 !important; 
+            box-shadow: inset 0 0 0 2px #34d399 !important; 
+        }
+        .fc .fc-day-today .fc-daygrid-day-number {
+            background-color: #10b981 !important;
+            color: #ffffff !important;
+            font-weight: 700;
+            border-radius: 4px;
+            padding: 3px 6px !important;
+            margin: 4px;
+        }
+
+        .fc-daygrid-day-events {
+            padding-bottom: 28px !important; 
+        }
+
+        .tippy-box { background-color: #0f172a; color: #f8fafc; border-radius: 12px; font-size: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); padding: 4px; }
+        .tippy-content { padding: 8px 12px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased selection:bg-emerald-600 selection:text-white">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm shrink-0">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-emerald-600 text-white p-2.5 rounded-xl shadow-md flex items-center justify-center">
+                    <i class="fa-solid fa-calendar-days text-lg"></i>
+                </div>
+                <div>
+                    <h1 onclick="handleHiddenTrigger()" class="font-bold text-base sm:text-lg text-slate-950 tracking-tight flex items-center space-x-2 cursor-pointer select-none" title="연속 클릭 시 개발자 메뉴 활성화">
+                        <span>S2팀 통합 일정 캘린더</span>
+                    </h1>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <div id="hidden-admin-buttons" class="hidden items-center space-x-2 bg-emerald-50/80 p-1.5 rounded-xl border border-emerald-200 animate-pulse">
+                    <label class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5 cursor-pointer" title="엑셀 일정 덮어쓰기 업로드">
+                        <i class="fa-solid fa-file-excel"></i>
+                        <span class="hidden sm:inline">엑셀 업로드</span>
+                        <input type="file" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)">
+                    </label>
+
+                    <button id="undo-btn" onclick="undoExcelUpload()" disabled class="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="직전 엑셀 업로드 전 상태로 되돌립니다">
+                        <i class="fa-solid fa-rotate-left"></i>
+                        <span class="hidden sm:inline">업로드 취소</span>
+                    </button>
+
+                    <button onclick="resetCalendarData()" class="bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="모든 일정을 초기화하고 공휴일만 남깁니다">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span class="hidden sm:inline">초기화</span>
+                    </button>
+                </div>
+
+                <a href="https://jeshu111.github.io/zesq-s2-onboarding/" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="S2팀 온보딩 포털">
+                    <i class="fa-solid fa-house-laptop"></i>
+                    <span class="hidden sm:inline">온보딩 포털</span>
+                </a>
+
+                <div class="relative" id="filter-container">
+                    <button onclick="toggleFilterDropdown(event)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-filter text-emerald-600"></i>
+                        <span class="hidden sm:inline">필터</span>
+                    </button>
+                    <div id="filter-dropdown" class="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-40 hidden space-y-3.5" onclick="event.stopPropagation()">
+                        <div>
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1.5">
+                                <span class="text-[11px] font-bold text-slate-800">휴가 필터</span>
+                                <div class="space-x-1">
+                                    <button onclick="selectAllFilters('leave', true)" class="text-[10px] text-blue-600 hover:underline">선택</button>
+                                    <button onclick="selectAllFilters('leave', false)" class="text-[10px] text-rose-500 hover:underline">해제</button>
+                                </div>
+                            </div>
+                            <div id="filter-leave-checkboxes" class="space-y-1 text-xs pr-1"></div>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1.5">
+                                <span class="text-[11px] font-bold text-slate-800">담당자별 필터</span>
+                                <div class="space-x-1">
+                                    <button onclick="selectAllFilters('member', true)" class="text-[10px] text-blue-600 hover:underline">전체</button>
+                                    <button onclick="selectAllFilters('member', false)" class="text-[10px] text-rose-500 hover:underline">해제</button>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400">
+                                        <i class="fa-solid fa-magnifying-glass text-[11px]"></i>
+                                    </span>
+                                    <input type="text" id="filter-search-input" oninput="filterMemberCheckboxes()" placeholder="담당자 또는 그룹 검색..." class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                </div>
+                            </div>
+                            <div id="filter-member-checkboxes" class="max-h-48 overflow-y-auto space-y-1 text-xs pr-1"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="openMemberModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-users-gear"></i>
+                    <span class="hidden sm:inline">조직 관리</span>
+                </button>
+                <button onclick="openEventModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 sm:px-4 py-2 rounded-lg shadow-sm transition flex items-center space-x-2">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>일정 등록</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col overflow-hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden relative">
+            <div id="calendar" class="h-full"></div>
+            <div id="loading-spinner" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
+                <i class="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-500"></i>
+            </div>
+        </div>
+    </main>
+
+    <!-- 일정 추가/수정 모달 -->
+    <div id="event-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base" id="modal-title">일정 등록</h3>
+                <button onclick="closeEventModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleEventSubmit(event)" class="space-y-3">
+                <input type="hidden" id="event-id">
+                
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">시작일</label>
+                        <input type="date" id="f-start" onchange="onEntityChange()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">종료일</label>
+                        <input type="date" id="f-end" onchange="onEntityChange()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">담당 주체 (개인 또는 그룹)</label>
+                    <select id="f-member" onchange="onEntityChange()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                    </select>
+                </div>
+
+                <div id="sub-members-section" class="hidden bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-slate-700">👥 세부 참여 인원 지정 (타 일정 보유 시 자동 제외)</span>
+                        <div class="space-x-1">
+                            <button type="button" onclick="toggleSubMembers(true)" class="text-[10px] text-blue-600 hover:underline">전체선택</button>
+                            <button type="button" onclick="toggleSubMembers(false)" class="text-[10px] text-rose-500 hover:underline">해제</button>
+                        </div>
+                    </div>
+                    <div id="sub-members-checkboxes" class="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pt-1"></div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">일정 제목 (예: 연차, 오후반차, QA 테스트 등)</label>
+                    <input type="text" id="f-title" oninput="checkLeaveTitleInput()" required placeholder="예: 연차 또는 WebVMS QA 테스트" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1 flex justify-between items-center">
+                        <span>문서 URL</span>
+                        <a id="f-url-link" href="#" target="_blank" class="hidden text-[10px] text-blue-600 hover:underline">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i> 열기
+                        </a>
+                    </label>
+                    <input type="url" id="f-url" placeholder="https://" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">코멘트 / 비고</label>
+                    <textarea id="f-comment" rows="2" placeholder="특이사항이나 비고 내용을 입력하세요." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                </div>
+
+                <div class="flex items-center justify-between pt-3 border-t border-slate-100 mt-4">
+                    <button type="button" id="modal-delete-btn" onclick="handleEventDelete()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold rounded-xl transition hidden flex items-center space-x-1.5">
+                        <i class="fa-solid fa-trash"></i>
+                        <span>삭제</span>
+                    </button>
+                    <div class="flex items-center space-x-2 ml-auto">
+                        <button type="button" onclick="closeEventModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">취소</button>
+                        <button type="submit" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition">저장</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 팀원 및 그룹 관리 모달 -->
+    <div id="member-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-[420px] w-full p-6 space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-2">
+                <h3 class="font-bold text-slate-900 text-base">팀원 및 그룹 조직 관리</h3>
+                <button onclick="closeMemberModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            
+            <div class="flex border-b border-slate-200">
+                <button id="tab-member" onclick="switchTab('member')" class="flex-1 pb-2 border-b-2 border-emerald-600 text-emerald-600 font-bold text-sm transition">개인 팀원</button>
+                <button id="tab-group" onclick="switchTab('group')" class="flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-semibold text-sm transition">그룹 단위</button>
+            </div>
+            
+            <div id="sec-member" class="space-y-4">
+                <div class="border rounded-xl p-3 max-h-36 overflow-y-auto space-y-2 bg-slate-50" id="member-list-container"></div>
+                
+                <div class="space-y-1">
+                    <button type="button" onclick="toggleResignedSection()" class="w-full flex items-center justify-between text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition">
+                        <span>📂 퇴사한 팀원 보기 (<span id="resigned-count">0</span>명)</span>
+                        <i id="resigned-arrow" class="fa-solid fa-chevron-down text-[10px]"></i>
+                    </button>
+                    <div id="resigned-list-container" class="hidden border rounded-xl p-3 max-h-32 overflow-y-auto space-y-2 bg-slate-100/60"></div>
+                </div>
+
+                <div class="bg-slate-100 p-3 rounded-xl space-y-3 border border-slate-200">
+                    <input type="text" id="new-member-name" placeholder="새 팀원 이름 입력" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    
+                    <div id="resigned-checkbox-wrapper" class="hidden">
+                        <label class="flex items-center space-x-1.5 text-xs cursor-pointer">
+                            <input type="checkbox" id="new-member-resigned" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300">
+                            <span class="font-medium text-slate-600">퇴사 여부 체크</span>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center justify-end space-x-2 pt-1">
+                        <button id="member-cancel-btn" onclick="cancelEditMember()" class="hidden px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-lg transition">취소</button>
+                        <button id="member-save-btn" onclick="saveMember()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition">팀원 추가</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="sec-group" class="space-y-4 hidden">
+                <div class="border rounded-xl p-3 max-h-40 overflow-y-auto space-y-2 bg-slate-50" id="group-list-container"></div>
+                <div class="bg-slate-100 p-3 rounded-xl space-y-3 border border-slate-200">
+                    <input type="text" id="new-group-name" placeholder="그룹명 (예: QA 파트)" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-slate-500 mb-1.5">대표 색상</label>
+                        <div class="flex flex-wrap gap-2" id="group-color-palette">
+                            <button type="button" onclick="selectColor('#059669', this, 'group')" class="w-6 h-6 rounded-full bg-[#059669] ring-2 ring-offset-2 ring-slate-400 transition color-btn" data-color="#059669"></button>
+                            <button type="button" onclick="selectColor('#2563eb', this, 'group')" class="w-6 h-6 rounded-full bg-[#2563eb] border border-transparent transition color-btn" data-color="#2563eb"></button>
+                            <button type="button" onclick="selectColor('#7c3aed', this, 'group')" class="w-6 h-6 rounded-full bg-[#7c3aed] border border-transparent transition color-btn" data-color="#7c3aed"></button>
+                            <button type="button" onclick="selectColor('#db2777', this, 'group')" class="w-6 h-6 rounded-full bg-[#db2777] border border-transparent transition color-btn" data-color="#db2777"></button>
+                            <button type="button" onclick="selectColor('#ea580c', this, 'group')" class="w-6 h-6 rounded-full bg-[#ea580c] border border-transparent transition color-btn" data-color="#ea580c"></button>
+                            <button type="button" onclick="selectColor('#eab308', this, 'group')" class="w-6 h-6 rounded-full bg-[#eab308] border border-transparent transition color-btn" data-color="#eab308"></button>
+                            <button type="button" onclick="selectColor('#0ea5e9', this, 'group')" class="w-6 h-6 rounded-full bg-[#0ea5e9] border border-transparent transition color-btn" data-color="#0ea5e9"></button>
+                            <button type="button" onclick="selectColor('#475569', this, 'group')" class="w-6 h-6 rounded-full bg-[#475569] border border-transparent transition color-btn" data-color="#475569" title="휴가 전용 회색"></button>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label class="block text-[11px] font-semibold text-slate-500">포함할 팀원 선택 (활성 팀원만)</label>
+                            <div class="space-x-1">
+                                <button type="button" onclick="toggleGroupAllMembers(true)" class="text-[10px] text-blue-600 hover:underline">전체</button>
+                                <button type="button" onclick="toggleGroupAllMembers(false)" class="text-[10px] text-rose-500 hover:underline">해제</button>
+                            </div>
+                        </div>
+                        <div id="group-members-checkboxes" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto"></div>
+                    </div>
+                    <div class="flex items-center justify-end space-x-2 pt-1">
+                        <button id="group-cancel-btn" onclick="cancelEditGroup()" class="hidden px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-lg transition">취소</button>
+                        <button id="group-save-btn" onclick="saveGroup()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition">그룹 추가</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBANvp_Se4n59yHcT9JvXyE-KN7cRIz_Go",
+            authDomain: "sd-asset-manager.firebaseapp.com",
+            databaseURL: "https://sd-asset-manager-default-rtdb.firebaseio.com",
+            projectId: "sd-asset-manager",
+            storageBucket: "sd-asset-manager.firebasestorage.app",
+            messagingSenderId: "568250820087",
+            appId: "1:568250820087:web:8f6dd508ec9421b1673af2",
+            measurementId: "G-W8WEJ04501"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const calendarRef = ref(db, 's2_team_calendar');
+        const membersRef = ref(db, 's2_team_members');
+        const groupsRef = ref(db, 's2_team_groups');
+
+        let calendar;
+        let teamMembers = [];
+        let teamGroups = [];
+        let rawCalendarData = null;
+        let isInitialLoad = true;
+        
+        let editingMemberId = null;
+        let editingGroupId = null;
+        let selectedGroupColor = '#059669';
+        
+        let selectedMembers = new Set();
+        let showLeaveEvent = false;
+
+        let hiddenClickCount = 0;
+        let hiddenTimer = null;
+        let lastBackupData = null;
+
+        window.handleHiddenTrigger = function() {
+            hiddenClickCount++;
+            clearTimeout(hiddenTimer);
+            hiddenTimer = setTimeout(() => { hiddenClickCount = 0; }, 3000);
+
+            if (hiddenClickCount >= 10) {
+                hiddenClickCount = 0;
+                const adminDiv = document.getElementById('hidden-admin-buttons');
+                const isHidden = adminDiv.classList.contains('hidden');
+                
+                if (isHidden) {
+                    adminDiv.classList.remove('hidden');
+                    adminDiv.classList.add('flex');
+                    alert('🎉 히든 관리자 메뉴(엑셀 업로드 / 업로드 취소 / 초기화)가 활성화되었습니다!');
+                } else {
+                    adminDiv.classList.remove('flex');
+                    adminDiv.classList.add('hidden');
+                    alert('🔒 히든 관리자 메뉴가 다시 숨겨졌습니다.');
+                }
+            }
+        };
+
+        const defaultMembers = [
+            { name: '강인현', isResigned: false },
+            { name: '해진', isResigned: false },
+            { name: '조성진', isResigned: false },
+            { name: 'Ami Vyas', isResigned: false },
+            { name: '딥샤', isResigned: false },
+            { name: '기타', isResigned: false }
+        ];
+
+        function isLeaveEvent(title) {
+            if (!title) return false;
+            const t = title.replace(/\s+/g, '');
+            return t.includes('연차') || t.includes('반차');
+        }
+
+        window.handleExcelUpload = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
+
+                const partColorMap = {
+                    'All': '#10b981',
+                    'Cloud Potal': '#2563eb',
+                    'OnCloud': '#059669',
+                    'Health Pro': '#7c3aed',
+                    'OnCAFE': '#ea580c'
+                };
+
+                const headers = rows[0]; 
+                let currentPart = null;
+                let memberPartMap = {};
+                let newMembersSet = new Set();
+                let newGroupsSet = new Set();
+                
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    const p = row[0];
+                    const m = row[1];
+                    if (p && String(p).trim() !== '') {
+                        currentPart = String(p).trim();
+                        newGroupsSet.add(currentPart);
+                    }
+                    if (m && String(m).trim() !== '' && m !== '공휴일 목록' && !String(m).startsWith('2026')) {
+                        const mName = String(m).trim();
+                        memberPartMap[mName] = currentPart || '기타';
+                        newMembersSet.add(mName);
+                    }
+                }
+
+                newMembersSet.forEach(name => {
+                    if(!teamMembers.some(tm => tm.name === name)) {
+                        push(membersRef, { name: name, isResigned: false });
+                    }
+                });
+
+                newGroupsSet.forEach(gName => {
+                    if(!teamGroups.some(tg => tg.name === gName)) {
+                        const assignedColor = partColorMap[gName] || '#059669';
+                        push(groupsRef, { name: gName, color: assignedColor, members: [] });
+                    }
+                });
+
+                const existingEventMap = new Map();
+                if (rawCalendarData) {
+                    Object.entries(rawCalendarData).forEach(([key, item]) => {
+                        const sig = `${item.start}_${item.member}_${item.title}`.trim();
+                        existingEventMap.set(sig, key);
+                    });
+                }
+
+                const individualEvents = [];
+                const groupedEvents = {};
+
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    const m = row[1];
+                    if (!m || String(m).trim() === '' || m === '공휴일 목록' || String(m).startsWith('2026')) continue;
+
+                    const name = String(m).trim();
+                    const part = memberPartMap[name] || '기타';
+                    const matchedGroupObj = teamGroups.find(g => g.name === part);
+                    const groupColor = matchedGroupObj ? matchedGroupObj.color : (partColorMap[part] || '#059669');
+
+                    for (let c = 2; c < headers.length; c++) {
+                        const val = row[c];
+                        if (val && String(val).trim() !== '') {
+                            let dateStr = null;
+                            const headerVal = headers[c];
+
+                            if (typeof headerVal === 'number') {
+                                const d = XLSX.SSF.parse_date_code(headerVal);
+                                dateStr = `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+                            } else if (typeof headerVal === 'string') {
+                                const match = headerVal.match(/(\d+)\/(\d+)/);
+                                if (match) {
+                                    dateStr = `2026-${match[1].padStart(2, '0')}-${match[2].padStart(2, '0')}`;
+                                } else if (headerVal.includes('-')) {
+                                    dateStr = headerVal.split(' ')[0];
+                                }
+                            }
+
+                            if (dateStr) {
+                                const title = String(val).trim();
+                                
+                                let dObj = new Date(dateStr);
+                                dObj.setDate(dObj.getDate() + 1);
+                                let endDateStr = dObj.toISOString().split('T')[0];
+
+                                if (isLeaveEvent(title)) {
+                                    individualEvents.push({
+                                        member: name,
+                                        title: title,
+                                        start: dateStr,
+                                        end: endDateStr,
+                                        color: '#475569',
+                                        comment: '엑셀 휴가 등록',
+                                        url: '',
+                                        subMembers: []
+                                    });
+                                } else {
+                                    const key = `${dateStr}_${title}_${part}`; 
+                                    if (!groupedEvents[key]) {
+                                        groupedEvents[key] = {
+                                            start: dateStr, end: endDateStr, title: title, part: part, color: groupColor,
+                                            members: new Set()
+                                        };
+                                    }
+                                    groupedEvents[key].members.add(name);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                const updates = {};
+                let processedCount = 0;
+
+                Object.values(groupedEvents).forEach(evt => {
+                    const membersArr = Array.from(evt.members);
+                    let assignMember = membersArr[0];
+                    let subMembers = [];
+                    let commentTxt = "엑셀 자동 등록";
+                    
+                    if (membersArr.length > 1) {
+                        assignMember = evt.part; 
+                        subMembers = membersArr; 
+                        commentTxt = `👥 엑셀 파싱: 총 ${membersArr.length}명 공통 일정`;
+                    }
+
+                    const sig = `${evt.start}_${assignMember}_${evt.title}`.trim();
+                    const eventData = {
+                        member: assignMember,
+                        title: evt.title,
+                        start: evt.start,
+                        end: evt.end,
+                        color: evt.color,
+                        comment: commentTxt,
+                        url: "",
+                        subMembers: subMembers
+                    };
+
+                    let targetKey = existingEventMap.get(sig);
+                    if (!targetKey) {
+                        targetKey = push(calendarRef).key;
+                    }
+                    updates['s2_team_calendar/' + targetKey] = eventData;
+                    processedCount++;
+                });
+
+                individualEvents.forEach(evt => {
+                    const sig = `${evt.start}_${evt.member}_${evt.title}`.trim();
+                    let targetKey = existingEventMap.get(sig);
+                    if (!targetKey) {
+                        targetKey = push(calendarRef).key;
+                    }
+                    updates['s2_team_calendar/' + targetKey] = evt;
+                    processedCount++;
+                });
+
+                if (processedCount > 0) {
+                    if (confirm(`엑셀 파일에서 총 ${processedCount}건의 일정을 파싱했습니다.\n기존 일정은 덮어쓰기 되며, 원치 않을 경우 관리자 메뉴의 [업로드 취소]로 되돌릴 수 있습니다[cite: 3]. 반영하시겠습니까?`)) {
+                        lastBackupData = rawCalendarData ? JSON.parse(JSON.stringify(rawCalendarData)) : {};
+                        document.getElementById('undo-btn').removeAttribute('disabled');
+
+                        update(ref(db), updates).then(() => {
+                            alert(`일정이 성공적으로 반영되었습니다!`);
+                            e.target.value = '';
+                        }).catch(err => {
+                            alert('반영 중 오류가 발생했습니다: ' + err.message);
+                        });
+                    }
+                } else {
+                    alert('파싱된 일정이 없습니다.');
+                    e.target.value = '';
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        window.undoExcelUpload = function() {
+            if (!lastBackupData) {
+                return alert('되돌릴 수 있는 직전 업로드 기록이 없습니다.');
+            }
+            if (confirm('가장 최근에 엑셀을 업로드하기 전 상태로 캘린더를 되돌리시겠습니까?')) {
+                set(calendarRef, lastBackupData).then(() => {
+                    alert('성공적으로 직전 상태로 복원되었습니다.');
+                    lastBackupData = null;
+                    document.getElementById('undo-btn').setAttribute('disabled', 'true');
+                }).catch(err => {
+                    alert('되돌리기 중 오류 발생: ' + err.message);
+                });
+            }
+        };
+
+        window.resetCalendarData = function() {
+            if (confirm('정말로 모든 일정을 초기화하시겠습니까?\n(등록된 모든 커스텀 일정이 삭제되고 공휴일만 남게 됩니다.)')) {
+                set(calendarRef, null).then(() => {
+                    lastBackupData = null;
+                    document.getElementById('undo-btn').setAttribute('disabled', 'true');
+                    alert('캘린더가 초기화되었습니다.');
+                }).catch(err => {
+                    alert('초기화 중 오류 발생: ' + err.message);
+                });
+            }
+        };
+
+        document.addEventListener('click', (event) => {
+            const filterContainer = document.getElementById('filter-container');
+            const dropdown = document.getElementById('filter-dropdown');
+            if (filterContainer && dropdown && !filterContainer.contains(event.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        window.toggleFilterDropdown = function(event) {
+            if (event) event.stopPropagation();
+            const dropdown = document.getElementById('filter-dropdown');
+            dropdown.classList.toggle('hidden');
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            onValue(groupsRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    teamGroups = Object.keys(data).map(key => ({
+                        id: key,
+                        name: data[key].name,
+                        color: data[key].color,
+                        members: data[key].members || []
+                    }));
+                } else teamGroups = [];
+                
+                checkAndCreateAllGroup();
+
+                renderMemberSelect();
+                renderMemberList();
+                renderGroupList();
+                renderFilterCheckboxes();
+            });
+
+            onValue(membersRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    teamMembers = Object.keys(data).map(key => ({
+                        id: key,
+                        name: data[key].name,
+                        isResigned: data[key].isResigned || false
+                    }));
+                } else {
+                    const updates = {};
+                    defaultMembers.forEach((m, i) => { updates[`member_default_${i}`] = { name: m.name, isResigned: m.isResigned }; });
+                    update(membersRef, updates);
+                    return; 
+                }
+                
+                teamMembers.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+
+                checkAndCreateAllGroup();
+
+                renderMemberSelect();
+                renderMemberList();
+                renderGroupMemberCheckboxes(); 
+                renderFilterCheckboxes();
+            });
+
+            const calendarEl = document.getElementById('calendar');
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'ko',
+                
+                displayEventTime: false,
+                allDayText: '', 
+                
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,dayGridWeek,listMonth'
+                },
+                buttonText: { today: '오늘', month: '월', week: '주', list: '목록' },
+                height: '100%',
+                selectable: true,
+                editable: true,
+                
+                eventSources: [{
+                    id: 'korea-holidays',
+                    events: async function(info, successCallback, failureCallback) {
+                        const startYear = info.start.getFullYear();
+                        const endYear = info.end.getFullYear();
+                        let holidays = [];
+                        try {
+                            const years = [...new Set([startYear, endYear])];
+                            for (const year of years) {
+                                const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/KR`);
+                                if (res.ok) {
+                                    const data = await res.json();
+                                    const yearHolidays = data.map(h => ({
+                                        title: h.localName, start: h.date, allDay: true,
+                                        color: '#fee2e2', textColor: '#dc2626', borderColor: '#fca5a5',
+                                        editable: false, classNames: ['holiday-event', 'cursor-default']
+                                    }));
+                                    holidays = holidays.concat(yearHolidays);
+                                }
+                            }
+                            successCallback(holidays);
+                        } catch (error) { successCallback([]); }
+                    }
+                }],
+                
+                select: function(info) {
+                    openEventModal();
+                    document.getElementById('f-start').value = info.startStr;
+                    const endDate = new Date(info.endStr);
+                    endDate.setDate(endDate.getDate() - 1);
+                    document.getElementById('f-end').value = endDate.toISOString().split('T')[0];
+                    onEntityChange();
+                },
+                
+                eventClick: function(info) {
+                    const evt = info.event;
+                    if (evt.source && evt.source.id === 'korea-holidays') return;
+
+                    document.getElementById('modal-title').innerText = "일정 수정";
+                    document.getElementById('event-id').value = evt.id;
+                    document.getElementById('f-title').value = evt.extendedProps.rawTitle || evt.title;
+                    
+                    const assignedEntity = evt.extendedProps.member || '강인현';
+                    const memberSelect = document.getElementById('f-member');
+                    
+                    if(!Array.from(memberSelect.options).some(opt => opt.value === assignedEntity)) {
+                        const tempOpt = document.createElement('option');
+                        tempOpt.value = assignedEntity;
+                        tempOpt.dataset.color = evt.backgroundColor;
+                        tempOpt.textContent = assignedEntity + " (삭제됨)";
+                        memberSelect.appendChild(tempOpt);
+                    }
+                    memberSelect.value = assignedEntity;
+                    
+                    document.getElementById('f-start').value = evt.startStr.split('T')[0];
+                    
+                    if (evt.end) {
+                        const endDate = new Date(evt.endStr);
+                        endDate.setDate(endDate.getDate() - 1);
+                        const calculatedEndStr = endDate.toISOString().split('T')[0];
+                        const startStr = evt.startStr.split('T')[0];
+                        
+                        if (calculatedEndStr < startStr) {
+                            document.getElementById('f-end').value = startStr;
+                        } else {
+                            document.getElementById('f-end').value = calculatedEndStr;
+                        }
+                    } else {
+                        document.getElementById('f-end').value = evt.startStr.split('T')[0];
+                    }
+
+                    onEntityChange();
+
+                    const subMembers = evt.extendedProps.subMembers || [];
+                    document.querySelectorAll('.sub-member-cb').forEach(cb => {
+                        cb.checked = subMembers.includes(cb.value);
+                    });
+                    
+                    document.getElementById('f-comment').value = evt.extendedProps.comment || '';
+                    const linkVal = evt.extendedProps.url || '';
+                    document.getElementById('f-url').value = linkVal;
+                    const linkBtn = document.getElementById('f-url-link');
+                    if(linkVal) {
+                        linkBtn.href = linkVal;
+                        linkBtn.classList.remove('hidden');
+                    } else {
+                        linkBtn.classList.add('hidden');
+                    }
+                    
+                    document.getElementById('modal-delete-btn').classList.remove('hidden');
+                    document.getElementById('event-modal').classList.remove('hidden');
+                },
+
+                eventMouseEnter: function(info) {
+                    if (info.event.source && info.event.source.id === 'korea-holidays') return;
+                    const props = info.event.extendedProps;
+                    let subListStr = '';
+                    const isGroup = teamGroups.some(g => g.name === props.member);
+                    if (isGroup) {
+                        subListStr = props.subMembers && props.subMembers.length > 0 ? props.subMembers.join(', ') : '참여 인원 없음';
+                    } else {
+                        subListStr = props.member;
+                    }
+
+                    const commentStr = props.comment ? `<div class="mt-1"><span class="text-slate-300 font-bold">코멘트:</span> ${props.comment}</div>` : '';
+                    const urlStr = props.url ? `<div class="mt-0.5"><a href="${props.url}" target="_blank" onclick="event.stopPropagation();" class="text-blue-400 underline truncate block">🔗 문서 바로가기</a></div>` : '';
+
+                    const content = `
+                        <div class="space-y-1">
+                            <div class="font-bold text-sm text-white border-b border-slate-700 pb-1">${props.rawTitle}</div>
+                            <div><span class="text-slate-400 font-semibold">담당 주체:</span> ${props.member}</div>
+                            <div><span class="text-slate-400 font-semibold">참여 인원:</span> ${subListStr}</div>
+                            ${commentStr}
+                            ${urlStr}
+                        </div>
+                    `;
+
+                    tippy(info.el, {
+                        content: content, allowHTML: true, theme: 'dark', animation: 'scale',
+                        placement: 'top', interactive: true, trigger: 'mouseenter focus', hideDelay: 200, appendTo: document.body
+                    });
+                },
+                
+                eventDrop: function(info) { updateEventDates(info.event); },
+                eventResize: function(info) { updateEventDates(info.event); }
+            });
+            calendar.render();
+
+            onValue(calendarRef, (snapshot) => {
+                rawCalendarData = snapshot.val() || {};
+                document.getElementById('loading-spinner').classList.add('hidden');
+                
+                if (isInitialLoad) {
+                    renderCalendarData();
+                    isInitialLoad = false;
+                } else {
+                    renderCalendarData();
+                }
+            });
+        });
+
+        // 🌟 활성 팀원 전체를 포함하는 'All' 그룹 자동 동기화 함수
+        function checkAndCreateAllGroup() {
+            if (teamMembers.length === 0) return;
+            const activeMemberNames = teamMembers.filter(m => !m.isResigned).map(m => m.name);
+            const allGroup = teamGroups.find(g => g.name === 'All');
+
+            if (!allGroup) {
+                push(groupsRef, {
+                    name: 'All',
+                    color: '#10b981',
+                    members: activeMemberNames
+                });
+            } else {
+                // 기존 'All' 그룹 멤버와 현재 활성 멤버 목록이 다를 경우 자동 업데이트
+                const currentMembersSet = new Set(allGroup.members || []);
+                const isDifferent = activeMemberNames.length !== currentMembersSet.size || activeMemberNames.some(name => !currentMembersSet.has(name));
+                
+                if (isDifferent) {
+                    update(ref(db, 's2_team_groups/' + allGroup.id), {
+                        members: activeMemberNames
+                    });
+                }
+            }
+        }
+
+        window.checkLeaveTitleInput = function() {
+            const titleVal = document.getElementById('f-title').value;
+            const selectEl = document.getElementById('f-member');
+            if (isLeaveEvent(titleVal)) {
+                if(selectEl.options[selectEl.selectedIndex]) {
+                    selectEl.options[selectEl.selectedIndex].dataset.color = '#475569';
+                }
+            } else {
+                onEntityChange();
+            }
+        };
+
+        window.onEntityChange = function() {
+            const selectEl = document.getElementById('f-member');
+            const selectedVal = selectEl.value;
+            const titleVal = document.getElementById('f-title').value;
+            const subSection = document.getElementById('sub-members-section');
+            const container = document.getElementById('sub-members-checkboxes');
+            container.innerHTML = '';
+
+            if (selectEl.options[selectEl.selectedIndex]) {
+                if (isLeaveEvent(titleVal)) {
+                    selectEl.options[selectEl.selectedIndex].dataset.color = '#475569';
+                } else {
+                    const matchedGroup = teamGroups.find(g => g.name === selectedVal);
+                    if (matchedGroup) {
+                        selectEl.options[selectEl.selectedIndex].dataset.color = matchedGroup.color;
+                    } else {
+                        selectEl.options[selectEl.selectedIndex].dataset.color = '#059669';
+                    }
+                }
+            }
+
+            const matchedGroup = teamGroups.find(g => g.name === selectedVal);
+            
+            if (matchedGroup && matchedGroup.members && matchedGroup.members.length > 0) {
+                subSection.classList.remove('hidden');
+
+                const startStr = document.getElementById('f-start').value;
+                const endStr = document.getElementById('f-end').value;
+                const currentEditingId = document.getElementById('event-id').value;
+
+                let membersWithConflict = new Set();
+                if (rawCalendarData && startStr && endStr) {
+                    const sDate = new Date(startStr);
+                    const eDate = new Date(endStr);
+
+                    Object.keys(rawCalendarData).forEach(key => {
+                        if (key === currentEditingId) return;
+                        const evt = rawCalendarData[key];
+                        const evStart = new Date(evt.start);
+                        const evEnd = new Date(evt.end ? evt.end : evt.start);
+
+                        const isOverlap = sDate <= evEnd && eDate >= evStart;
+                        if (isOverlap) {
+                            if (teamMembers.some(m => m.name === evt.member)) membersWithConflict.add(evt.member);
+                            if (evt.subMembers && Array.isArray(evt.subMembers)) {
+                                evt.subMembers.forEach(sm => membersWithConflict.add(sm));
+                            }
+                        }
+                    });
+                }
+
+                matchedGroup.members.forEach(mName => {
+                    const hasConflict = membersWithConflict.has(mName);
+                    const isChecked = !hasConflict; 
+
+                    const lbl = document.createElement('label');
+                    lbl.className = `flex items-center space-x-1 px-2 py-1 rounded border text-xs cursor-pointer transition ${hasConflict ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'}`;
+                    lbl.innerHTML = `
+                        <input type="checkbox" value="${mName}" ${isChecked ? 'checked' : ''} class="sub-member-cb rounded text-emerald-600 focus:ring-emerald-500">
+                        <span class="font-medium">${mName} ${hasConflict ? '(타 일정 있음)' : ''}</span>
+                    `;
+                    container.appendChild(lbl);
+                });
+            } else {
+                subSection.classList.add('hidden');
+            }
+        };
+
+        window.toggleSubMembers = function(check) {
+            document.querySelectorAll('.sub-member-cb').forEach(cb => cb.checked = check);
+        };
+
+        function renderFilterCheckboxes() {
+            const leaveContainer = document.getElementById('filter-leave-checkboxes');
+            leaveContainer.innerHTML = '';
+            const isLeaveChecked = showLeaveEvent;
+            const leaveLbl = document.createElement('label');
+            leaveLbl.className = 'flex items-center space-x-2 cursor-pointer hover:bg-slate-100 p-1.5 rounded transition';
+            leaveLbl.innerHTML = `
+                <input type="checkbox" ${isLeaveChecked ? 'checked' : ''} onchange="handleLeaveFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300">
+                <span class="font-medium text-slate-700">휴가 일정 표시 (연차/반차)</span>
+            `;
+            leaveContainer.appendChild(leaveLbl);
+            filterMemberCheckboxes();
+        }
+
+        window.filterMemberCheckboxes = function() {
+            const memberContainer = document.getElementById('filter-member-checkboxes');
+            const searchInput = document.getElementById('filter-search-input');
+            const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
+            
+            memberContainer.innerHTML = '';
+
+            const activeMembers = teamMembers.filter(m => !m.isResigned);
+            const allEntities = [...teamGroups.map(g=>g.name), ...activeMembers.map(m=>m.name)];
+            const filteredEntities = allEntities.filter(name => name.toLowerCase().includes(keyword));
+
+            if (filteredEntities.length === 0) {
+                memberContainer.innerHTML = '<div class="text-[11px] text-slate-400 py-2 text-center">검색 결과가 없습니다.</div>';
+            } else {
+                filteredEntities.forEach(name => {
+                    const isChecked = selectedMembers.has(name);
+                    const lbl = document.createElement('label');
+                    lbl.className = 'flex items-center space-x-2 cursor-pointer hover:bg-slate-100 p-1.5 rounded transition';
+                    lbl.innerHTML = `
+                        <input type="checkbox" value="${name}" ${isChecked ? 'checked' : ''} onchange="handleMemberFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300">
+                        <span class="font-medium text-slate-700">${name}</span>
+                    `;
+                    memberContainer.appendChild(lbl);
+                });
+            }
+            renderCalendarData();
+        };
+
+        window.handleMemberFilterChange = function(cb) {
+            if(cb.checked) selectedMembers.add(cb.value);
+            else selectedMembers.delete(cb.value);
+            renderCalendarData();
+        };
+
+        window.handleLeaveFilterChange = function(cb) {
+            showLeaveEvent = cb.checked;
+            renderCalendarData();
+        };
+
+        window.selectAllFilters = function(type, check) {
+            if (type === 'member') {
+                const activeMembers = teamMembers.filter(m => !m.isResigned);
+                const allEntities = [...teamGroups.map(g=>g.name), ...activeMembers.map(m=>m.name)];
+                if(check) {
+                    allEntities.forEach(e => selectedMembers.add(e));
+                } else {
+                    selectedMembers.clear();
+                }
+            } else {
+                showLeaveEvent = check;
+            }
+            renderFilterCheckboxes();
+        };
+
+        function renderCalendarData() {
+            if (!calendar) return;
+            const oldSource = calendar.getEventSourceById('firebase-data');
+            if (oldSource) oldSource.remove();
+
+            if (rawCalendarData) {
+                const anyMemberSelected = selectedMembers.size > 0;
+                const anyFilterActive = anyMemberSelected || showLeaveEvent;
+
+                const eventsArray = Object.keys(rawCalendarData).reduce((arr, key) => {
+                    const item = rawCalendarData[key];
+                    const isLeave = isLeaveEvent(item.title);
+
+                    if (!anyFilterActive) {
+                        arr.push(createCalendarEventObject(key, item));
+                        return arr;
+                    }
+
+                    let match = false;
+                    if (isLeave && showLeaveEvent) match = true;
+                    if (anyMemberSelected) {
+                        if (selectedMembers.has(item.member)) match = true;
+                        if (item.subMembers && Array.isArray(item.subMembers)) {
+                            if (item.subMembers.some(sm => selectedMembers.has(sm))) match = true;
+                        }
+                    }
+
+                    if (match) arr.push(createCalendarEventObject(key, item));
+                    return arr;
+                }, []);
+                
+                calendar.addEventSource({ id: 'firebase-data', events: eventsArray });
+            }
+        }
+
+        function createCalendarEventObject(key, item) {
+            const isLeave = isLeaveEvent(item.title);
+            let eventColor = item.color || '#059669';
+            if (isLeave) {
+                eventColor = '#475569';
+            } else {
+                const matchedGroup = teamGroups.find(g => g.name === item.member);
+                if (matchedGroup) {
+                    eventColor = matchedGroup.color;
+                }
+            }
+
+            let validEnd = item.end;
+            if (item.start === item.end) {
+                let dObj = new Date(item.start);
+                dObj.setDate(dObj.getDate() + 1);
+                validEnd = dObj.toISOString().split('T')[0];
+            }
+
+            return {
+                id: key, title: `[${item.member}] ${item.title}`, start: item.start, end: validEnd,
+                allDay: true,
+                backgroundColor: eventColor, borderColor: eventColor,
+                extendedProps: {
+                    member: item.member, rawTitle: item.title, comment: item.comment || '',
+                    url: item.url || '', subMembers: item.subMembers || []
+                }
+            };
+        }
+
+        window.switchTab = function(tab) {
+            const btnMem = document.getElementById('tab-member');
+            const btnGrp = document.getElementById('tab-group');
+            const secMem = document.getElementById('sec-member');
+            const secGrp = document.getElementById('sec-group');
+            if (tab === 'member') {
+                secMem.classList.remove('hidden'); secGrp.classList.add('hidden');
+                btnMem.className = 'flex-1 pb-2 border-b-2 border-emerald-600 text-emerald-600 font-bold text-sm transition';
+                btnGrp.className = 'flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-semibold text-sm transition';
+            } else {
+                secGrp.classList.remove('hidden'); secMem.classList.add('hidden');
+                btnGrp.className = 'flex-1 pb-2 border-b-2 border-emerald-600 text-emerald-600 font-bold text-sm transition';
+                btnMem.className = 'flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-semibold text-sm transition';
+            }
+        };
+
+        window.selectColor = function(color, btnElem, type) {
+            selectedGroupColor = color;
+            document.querySelectorAll(`#group-color-palette .color-btn`).forEach(b => {
+                b.classList.remove('ring-2', 'ring-offset-2', 'ring-slate-400');
+            });
+            if(btnElem) btnElem.classList.add('ring-2', 'ring-offset-2', 'ring-slate-400');
+        };
+
+        window.openMemberModal = function() {
+            cancelEditMember(); cancelEditGroup();
+            document.getElementById('member-modal').classList.remove('hidden');
+        };
+        window.closeMemberModal = function() { document.getElementById('member-modal').classList.add('hidden'); };
+
+        window.toggleResignedSection = function() {
+            const list = document.getElementById('resigned-list-container');
+            const arrow = document.getElementById('resigned-arrow');
+            list.classList.toggle('hidden');
+            arrow.classList.toggle('fa-chevron-down');
+            arrow.classList.toggle('fa-chevron-up');
+        };
+
+        function renderMemberSelect() {
+            const select = document.getElementById('f-member');
+            select.innerHTML = '';
+            
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = "";
+            defaultOpt.disabled = true;
+            defaultOpt.selected = true;
+            defaultOpt.textContent = "담당 주체를 선택하세요";
+            select.appendChild(defaultOpt);
+
+            if (teamGroups.length > 0) {
+                const optGrp = document.createElement('optgroup');
+                optGrp.label = "📂 묶음 그룹";
+                
+                // 'All' 그룹이 맨 위에 오도록 정렬
+                const sortedGroups = [...teamGroups].sort((a, b) => {
+                    if (a.name === 'All') return -1;
+                    if (b.name === 'All') return 1;
+                    return a.name.localeCompare(b.name, 'ko');
+                });
+
+                sortedGroups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g.name; opt.dataset.color = g.color; opt.textContent = g.name;
+                    optGrp.appendChild(opt);
+                });
+                select.appendChild(optGrp);
+            }
+
+            const activeMembers = teamMembers.filter(m => !m.isResigned);
+            if (activeMembers.length > 0) {
+                const optMem = document.createElement('optgroup');
+                optMem.label = "👤 개별 팀원";
+                activeMembers.forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.name; opt.dataset.color = '#059669'; opt.textContent = m.name;
+                    optMem.appendChild(opt);
+                });
+                select.appendChild(optMem);
+            }
+            onEntityChange();
+        }
+
+        function renderMemberList() {
+            const container = document.getElementById('member-list-container');
+            const resignedContainer = document.getElementById('resigned-list-container');
+            const resignedCountSpan = document.getElementById('resigned-count');
+            
+            container.innerHTML = ''; resignedContainer.innerHTML = '';
+
+            const activeMembers = teamMembers.filter(m => !m.isResigned);
+            const resignedMembers = teamMembers.filter(m => m.isResigned);
+
+            resignedCountSpan.innerText = resignedMembers.length;
+
+            if (activeMembers.length === 0) {
+                container.innerHTML = `<p class="text-center text-xs text-slate-400 py-2">등록된 활성 팀원이 없습니다.</p>`;
+            } else {
+                activeMembers.forEach(m => {
+                    const memberGroups = teamGroups.filter(g => g.name !== 'All' && g.members && g.members.includes(m.name));
+                    let groupBadges = '';
+                    if (memberGroups.length > 0) {
+                        groupBadges = '<div class="flex flex-wrap gap-1 mt-1">';
+                        memberGroups.forEach(g => {
+                            groupBadges += `<span class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-slate-200 bg-white text-slate-700"><span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${g.color};"></span><span>${g.name}</span></span>`;
+                        });
+                        groupBadges += '</div>';
+                    }
+
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center justify-between bg-white p-2.5 rounded-lg border text-xs shadow-sm';
+                    div.innerHTML = `
+                        <div class="flex flex-col flex-1 pr-2">
+                            <span class="font-semibold text-slate-800">${m.name}</span>
+                            ${groupBadges}
+                        </div>
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button onclick="editMember('${m.id}', '${m.name}', ${m.isResigned})" class="text-blue-500 hover:text-blue-700 p-1" title="수정"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteMember('${m.id}')" class="text-rose-500 hover:text-rose-700 p-1" title="삭제"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            if (resignedMembers.length === 0) {
+                resignedContainer.innerHTML = `<p class="text-center text-[11px] text-slate-400 py-2">퇴사한 팀원이 없습니다.</p>`;
+            } else {
+                resignedMembers.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200 text-xs shadow-sm opacity-75';
+                    div.innerHTML = `
+                        <div class="flex items-center space-x-2">
+                            <span class="font-medium text-slate-500 line-through">${m.name}</span>
+                            <span class="bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded text-[10px] font-semibold">퇴사</span>
+                        </div>
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button onclick="editMember('${m.id}', '${m.name}', ${m.isResigned})" class="text-blue-500 hover:text-blue-700 p-1" title="수정"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteMember('${m.id}')" class="text-rose-500 hover:text-rose-700 p-1" title="삭제"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    `;
+                    resignedContainer.appendChild(div);
+                });
+            }
+        }
+
+        window.editMember = function(id, name, isResigned) {
+            editingMemberId = id;
+            document.getElementById('new-member-name').value = name;
+            document.getElementById('new-member-resigned').checked = isResigned;
+            document.getElementById('resigned-checkbox-wrapper').classList.remove('hidden');
+            document.getElementById('member-save-btn').innerText = '수정완료';
+            document.getElementById('member-cancel-btn').classList.remove('hidden');
+        };
+
+        window.cancelEditMember = function() {
+            editingMemberId = null;
+            document.getElementById('new-member-name').value = '';
+            document.getElementById('new-member-resigned').checked = false;
+            document.getElementById('resigned-checkbox-wrapper').classList.add('hidden');
+            document.getElementById('member-save-btn').innerText = '팀원 추가';
+            document.getElementById('member-cancel-btn').classList.add('hidden');
+        };
+
+        window.saveMember = function() {
+            const name = document.getElementById('new-member-name').value.trim();
+            const isResigned = editingMemberId ? document.getElementById('new-member-resigned').checked : false;
+            if(!name) return alert('팀원 이름을 입력하세요.');
+            if(teamMembers.some(m => m.name === name && m.id !== editingMemberId)) return alert('이미 존재하는 이름입니다.');
+            
+            const memberData = { name, isResigned };
+            if(editingMemberId) update(ref(db, 's2_team_members/' + editingMemberId), memberData);
+            else push(membersRef, memberData);
+            cancelEditMember();
+        };
+
+        window.deleteMember = function(id) {
+            if(confirm('이 팀원을 정말 삭제하시겠습니까?')) {
+                remove(ref(db, 's2_team_members/' + id));
+                if(editingMemberId === id) cancelEditMember();
+            }
+        };
+
+        function renderGroupList() {
+            const container = document.getElementById('group-list-container');
+            container.innerHTML = '';
+            
+            const displayGroups = teamGroups.filter(g => g.name !== 'All');
+
+            if (displayGroups.length === 0) return container.innerHTML = `<p class="text-center text-xs text-slate-400 py-4">등록된 그룹이 없습니다.</p>`;
+
+            displayGroups.forEach(g => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center justify-between bg-white p-2.5 rounded-lg border text-xs shadow-sm';
+                let memberBadges = '<span class="text-[10px] text-slate-400">인원 없음</span>';
+                if (g.members && g.members.length > 0) {
+                    const sortedGroupMembers = [...g.members].sort((a, b) => a.localeCompare(b, 'ko'));
+                    memberBadges = '<div class="flex flex-wrap gap-1 mt-1">';
+                    sortedGroupMembers.forEach(mName => {
+                        memberBadges += `<span class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] font-medium border border-slate-200">${mName}</span>`;
+                    });
+                    memberBadges += '</div>';
+                }
+                div.innerHTML = `
+                    <div class="flex items-start space-x-2 flex-1 pr-2">
+                        <span class="w-3 h-3 rounded-full shrink-0 mt-0.5" style="background-color: ${g.color};"></span>
+                        <div class="flex flex-col flex-1">
+                            <span class="font-bold text-slate-800">${g.name}</span>
+                            ${memberBadges}
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-1 shrink-0">
+                        <button onclick="editGroup('${g.id}', '${g.name}', '${g.color}')" class="text-blue-500 hover:text-blue-700 p-1"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteGroup('${g.id}')" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderGroupMemberCheckboxes() {
+            const container = document.getElementById('group-members-checkboxes');
+            container.innerHTML = '';
+            const activeMembers = teamMembers.filter(m => !m.isResigned);
+            if(activeMembers.length === 0) return container.innerHTML = '<span class="text-xs text-slate-400">등록된 활성 팀원이 없습니다.</span>';
+
+            activeMembers.forEach(m => {
+                const lbl = document.createElement('label');
+                lbl.className = 'flex items-center space-x-1 bg-white px-2 py-1 rounded border border-slate-200 text-xs cursor-pointer hover:bg-slate-50 transition';
+                lbl.innerHTML = `<input type="checkbox" value="${m.name}" class="group-member-cb rounded text-emerald-600 focus:ring-emerald-500"><span class="font-medium">${m.name}</span>`;
+                container.appendChild(lbl);
+            });
+        }
+
+        window.toggleGroupAllMembers = function(check) {
+            document.querySelectorAll('.group-member-cb').forEach(cb => cb.checked = check);
+        };
+
+        window.editGroup = function(id, name, color) {
+            editingGroupId = id;
+            document.getElementById('new-group-name').value = name;
+            const btn = document.querySelector(`#group-color-palette .color-btn[data-color="${color}"]`);
+            if(btn) selectColor(color, btn, 'group');
+            const groupTarget = teamGroups.find(g => g.id === id);
+            document.querySelectorAll('.group-member-cb').forEach(cb => {
+                cb.checked = groupTarget && groupTarget.members ? groupTarget.members.includes(cb.value) : false;
+            });
+            document.getElementById('group-save-btn').innerText = '수정완료';
+            document.getElementById('group-cancel-btn').classList.remove('hidden');
+        };
+
+        window.cancelEditGroup = function() {
+            editingGroupId = null;
+            document.getElementById('new-group-name').value = '';
+            document.getElementById('group-save-btn').innerText = '그룹 추가';
+            document.getElementById('group-cancel-btn').classList.add('hidden');
+            document.querySelectorAll('.group-member-cb').forEach(cb => cb.checked = false);
+            selectColor('#059669', document.querySelector('#group-color-palette .color-btn[data-color="#059669"]'), 'group');
+        };
+
+        window.saveGroup = function() {
+            const name = document.getElementById('new-group-name').value.trim();
+            if(!name) return alert('그룹명을 입력하세요.');
+            if(name === 'All') return alert('All 그룹명은 시스템 예약어입니다.');
+            if(teamGroups.some(g => g.name === name && g.id !== editingGroupId)) return alert('이미 존재하는 그룹명입니다.');
+
+            const checkedMembers = Array.from(document.querySelectorAll('.group-member-cb:checked')).map(cb => cb.value);
+            const groupData = { name, color: selectedGroupColor, members: checkedMembers };
+            if(editingGroupId) update(ref(db, 's2_team_groups/' + editingGroupId), groupData);
+            else push(groupsRef, groupData);
+            cancelEditGroup();
+        };
+
+        window.deleteGroup = function(id) {
+            const targetGroup = teamGroups.find(g => g.id === id);
+            if (targetGroup && targetGroup.name === 'All') {
+                return alert('All 그룹은 삭제할 수 없습니다.');
+            }
+            if(confirm('이 그룹을 삭제하시겠습니까?')) {
+                remove(ref(db, 's2_team_groups/' + id));
+                if(editingGroupId === id) cancelEditGroup();
+            }
+        };
+
+        function updateEventDates(event) {
+            const dbRef = ref(db, 's2_team_calendar/' + event.id);
+            const endDate = event.end ? event.endStr.split('T')[0] : event.startStr.split('T')[0];
+            update(dbRef, { start: event.startStr.split('T')[0], end: endDate });
+        }
+
+        window.openEventModal = function() {
+            document.getElementById('modal-title').innerText = "일정 등록";
+            document.getElementById('event-id').value = "";
+            document.getElementById('f-title').value = "";
+            document.getElementById('f-comment').value = "";
+            document.getElementById('f-url').value = "";
+            document.getElementById('f-url-link').classList.add('hidden');
+            
+            const selectEl = document.getElementById('f-member');
+            if (selectEl.options.length > 0) selectEl.selectedIndex = 0;
+            
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('f-start').value = today;
+            document.getElementById('f-end').value = today;
+            onEntityChange();
+            
+            document.getElementById('modal-delete-btn').classList.add('hidden');
+            document.getElementById('event-modal').classList.remove('hidden');
+        };
+
+        window.closeEventModal = function() { document.getElementById('event-modal').classList.add('hidden'); };
+
+        window.handleEventSubmit = function(e) {
+            e.preventDefault();
+            const id = document.getElementById('event-id').value;
+            const memberSelect = document.getElementById('f-member');
+            if(memberSelect.value === "") return alert('담당 주체를 선택해주세요.');
+            
+            const member = memberSelect.value;
+            const title = document.getElementById('f-title').value;
+            
+            let color = '#059669';
+            if (isLeaveEvent(title)) {
+                color = '#475569';
+            } else {
+                const matchedGroup = teamGroups.find(g => g.name === member);
+                if (matchedGroup) {
+                    color = matchedGroup.color;
+                } else if (memberSelect.options[memberSelect.selectedIndex] && memberSelect.options[memberSelect.selectedIndex].dataset.color) {
+                    color = memberSelect.options[memberSelect.selectedIndex].dataset.color;
+                }
+            }
+
+            const comment = document.getElementById('f-comment').value;
+            const url = document.getElementById('f-url').value;
+            const start = document.getElementById('f-start').value;
+            const subMembers = Array.from(document.querySelectorAll('.sub-member-cb:checked')).map(cb => cb.value);
+
+            let endObj = new Date(document.getElementById('f-end').value);
+            endObj.setDate(endObj.getDate() + 1);
+            const end = endObj.toISOString().split('T')[0];
+
+            const eventData = { member, title, comment, url, start, end, color, subMembers };
+
+            if (id) {
+                update(ref(db, 's2_team_calendar/' + id), eventData).then(() => {
+                    if (rawCalendarData && rawCalendarData[id]) {
+                        rawCalendarData[id] = eventData;
+                        renderCalendarData();
+                    }
+                });
+            } else {
+                const newRef = push(calendarRef);
+                set(newRef, eventData);
+            }
+            
+            closeEventModal();
+        };
+
+        window.handleEventDelete = function() {
+            const id = document.getElementById('event-id').value;
+            if (id && confirm('정말 이 일정을 삭제하시겠습니까?')) {
+                remove(ref(db, 's2_team_calendar/' + id));
+                if (rawCalendarData) delete rawCalendarData[id];
+                const eventToRemove = calendar.getEventById(id);
+                if (eventToRemove) {
+                    eventToRemove.remove();
+                }
+                closeEventModal();
+            }
+        };
+    </script>
+</body>
+</html>
