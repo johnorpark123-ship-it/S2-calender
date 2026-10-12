@@ -75,77 +75,85 @@
                     </h1>
                 </div>
             </div>
-            <div class="flex items-center space-x-2">
-                <div id="hidden-admin-buttons" class="hidden items-center space-x-2 bg-emerald-50/80 p-1.5 rounded-xl border border-emerald-200 animate-pulse">
-                    <label class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5 cursor-pointer" title="엑셀 일정 덮어쓰기 업로드">
-                        <i class="fa-solid fa-file-excel"></i>
-                        <span class="hidden sm:inline">엑셀 업로드</span>
-                        <input type="file" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)">
-                    </label>
-
-                    <button id="undo-btn" onclick="undoExcelUpload()" disabled class="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="직전 엑셀 업로드 전 상태로 되돌립니다">
-                        <i class="fa-solid fa-rotate-left"></i>
-                        <span class="hidden sm:inline">업로드 취소</span>
-                    </button>
-
-                    <button onclick="resetCalendarData()" class="bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="모든 일정을 초기화하고 공휴일만 남깁니다">
-                        <i class="fa-solid fa-rotate-right"></i>
-                        <span class="hidden sm:inline">초기화</span>
-                    </button>
+            
+            <div class="flex items-center space-x-3">
+                <!-- 상시 표시되는 실시간 시간 영역 -->
+                <div id="live-clock-container" class="flex items-center space-x-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 shadow-inner">
+                    <i class="fa-regular fa-clock text-emerald-600"></i>
+                    <span id="live-clock-text">--:--:--</span>
                 </div>
 
-                <a href="https://jeshu111.github.io/zesq-s2-onboarding/" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="S2팀 온보딩 포털">
-                    <i class="fa-solid fa-house-laptop"></i>
-                    <span class="hidden sm:inline">온보딩 포털</span>
-                </a>
+                <div class="flex items-center space-x-2">
+                    <div id="hidden-admin-buttons" class="hidden items-center space-x-2 bg-emerald-50/80 p-1.5 rounded-xl border border-emerald-200 animate-pulse">
+                        <label class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5 cursor-pointer" title="엑셀 일정 덮어쓰기 업로드">
+                            <i class="fa-solid fa-file-excel"></i>
+                            <span class="hidden sm:inline">엑셀 업로드</span>
+                            <input type="file" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)">
+                        </label>
 
-                <!-- 🌟 필터 드롭다운 크기 확장 (w-72 -> w-96) -->
-                <div class="relative" id="filter-container">
-                    <button onclick="toggleFilterDropdown(event)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 transition flex items-center space-x-1.5">
-                        <i class="fa-solid fa-filter text-emerald-600"></i>
-                        <span class="hidden sm:inline">필터</span>
-                    </button>
-                    <div id="filter-dropdown" class="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-5 z-40 hidden space-y-4" onclick="event.stopPropagation()">
-                        <div>
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
-                                <span class="text-xs font-bold text-slate-800">휴가 필터</span>
-                                <div class="space-x-1.5">
-                                    <button onclick="selectAllFilters('leave', true)" class="text-[11px] text-blue-600 hover:underline">선택</button>
-                                    <button onclick="selectAllFilters('leave', false)" class="text-[11px] text-rose-500 hover:underline">해제</button>
+                        <button id="undo-btn" onclick="undoExcelUpload()" disabled class="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="직전 엑셀 업로드 전 상태로 되돌립니다">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span class="hidden sm:inline">업로드 취소</span>
+                        </button>
+
+                        <button onclick="resetCalendarData()" class="bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="모든 일정을 초기화하고 공휴일만 남깁니다">
+                            <i class="fa-solid fa-rotate-right"></i>
+                            <span class="hidden sm:inline">초기화</span>
+                        </button>
+                    </div>
+
+                    <a href="https://jeshu111.github.io/zesq-s2-onboarding/" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="S2팀 온보딩 포털">
+                        <i class="fa-solid fa-house-laptop"></i>
+                        <span class="hidden sm:inline">온보딩 포털</span>
+                    </a>
+
+                    <!-- 필터 드롭다운 크기 확장 (w-96) -->
+                    <div class="relative" id="filter-container">
+                        <button onclick="toggleFilterDropdown(event)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 transition flex items-center space-x-1.5">
+                            <i class="fa-solid fa-filter text-emerald-600"></i>
+                            <span class="hidden sm:inline">필터</span>
+                        </button>
+                        <div id="filter-dropdown" class="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-5 z-40 hidden space-y-4" onclick="event.stopPropagation()">
+                            <div>
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                                    <span class="text-xs font-bold text-slate-800">휴가 필터</span>
+                                    <div class="space-x-1.5">
+                                        <button onclick="selectAllFilters('leave', true)" class="text-[11px] text-blue-600 hover:underline">선택</button>
+                                        <button onclick="selectAllFilters('leave', false)" class="text-[11px] text-rose-500 hover:underline">해제</button>
+                                    </div>
                                 </div>
+                                <div id="filter-leave-checkboxes" class="space-y-1 text-xs pr-1"></div>
                             </div>
-                            <div id="filter-leave-checkboxes" class="space-y-1 text-xs pr-1"></div>
-                        </div>
-                        <div>
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
-                                <span class="text-xs font-bold text-slate-800">담당자별 필터</span>
-                                <div class="space-x-1.5">
-                                    <button onclick="selectAllFilters('member', true)" class="text-[11px] text-blue-600 hover:underline">전체</button>
-                                    <button onclick="selectAllFilters('member', false)" class="text-[11px] text-rose-500 hover:underline">해제</button>
+                            <div>
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                                    <span class="text-xs font-bold text-slate-800">담당자별 필터</span>
+                                    <div class="space-x-1.5">
+                                        <button onclick="selectAllFilters('member', true)" class="text-[11px] text-blue-600 hover:underline">전체</button>
+                                        <button onclick="selectAllFilters('member', false)" class="text-[11px] text-rose-500 hover:underline">해제</button>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="mb-2.5">
-                                <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
-                                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                                    </span>
-                                    <input type="text" id="filter-search-input" oninput="filterMemberCheckboxes()" placeholder="담당자 또는 그룹 검색..." class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                <div class="mb-2.5">
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                        </span>
+                                        <input type="text" id="filter-search-input" oninput="filterMemberCheckboxes()" placeholder="담당자 또는 그룹 검색..." class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                    </div>
                                 </div>
+                                <div id="filter-member-checkboxes" class="max-h-72 overflow-y-auto space-y-1.5 text-xs pr-1"></div>
                             </div>
-                            <!-- 담당자 목록 높이 확장 (max-h-48 -> max-h-72) -->
-                            <div id="filter-member-checkboxes" class="max-h-72 overflow-y-auto space-y-1.5 text-xs pr-1"></div>
                         </div>
                     </div>
-                </div>
 
-                <button onclick="openMemberModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5">
-                    <i class="fa-solid fa-users-gear"></i>
-                    <span class="hidden sm:inline">조직 관리</span>
-                </button>
-                <button onclick="openEventModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 sm:px-4 py-2 rounded-lg shadow-sm transition flex items-center space-x-2">
-                    <i class="fa-solid fa-plus"></i>
-                    <span>일정 등록</span>
-                </button>
+                    <button onclick="openMemberModal()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-users-gear"></i>
+                        <span class="hidden sm:inline">조직 관리</span>
+                    </button>
+                    <button onclick="openEventModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 sm:px-4 py-2 rounded-lg shadow-sm transition flex items-center space-x-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>일정 등록</span>
+                    </button>
+                </div>
             </div>
         </div>
     </header>
@@ -170,7 +178,6 @@
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">연도</label>
                     <select id="picker-year" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                        <!-- JS에서 동적 생성 -->
                     </select>
                 </div>
                 <div>
@@ -330,7 +337,7 @@
         </div>
     </div>
 
-    <!-- 🌟 팀원 및 그룹 관리 모달 크기 확장 (max-w-[420px] -> max-w-xl) -->
+    <!-- 팀원 및 그룹 관리 모달 -->
     <div id="member-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 sm:p-8 space-y-6 border border-slate-100 max-h-[90vh] overflow-y-auto">
             <div class="flex items-center justify-between pb-2 border-b border-slate-100">
@@ -344,7 +351,6 @@
             </div>
             
             <div id="sec-member" class="space-y-5">
-                <!-- 활성 팀원 목록 상자 높이 확장 (max-h-36 -> max-h-60) -->
                 <div class="border rounded-xl p-4 max-h-60 overflow-y-auto space-y-2.5 bg-slate-50" id="member-list-container"></div>
                 
                 <div class="space-y-1.5">
@@ -352,7 +358,6 @@
                         <span>📂 퇴사한 팀원 보기 (<span id="resigned-count">0</span>명)</span>
                         <i id="resigned-arrow" class="fa-solid fa-chevron-down text-xs"></i>
                     </button>
-                    <!-- 퇴사자 목록 상자 높이 확장 (max-h-32 -> max-h-48) -->
                     <div id="resigned-list-container" class="hidden border rounded-xl p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-100/60"></div>
                 </div>
 
@@ -374,7 +379,6 @@
             </div>
 
             <div id="sec-group" class="space-y-5 hidden">
-                <!-- 그룹 목록 상자 높이 확장 (max-h-40 -> max-h-60) -->
                 <div class="border rounded-xl p-4 max-h-60 overflow-y-auto space-y-2.5 bg-slate-50" id="group-list-container"></div>
                 <div class="bg-slate-100 p-4 rounded-xl space-y-4 border border-slate-200">
                     <input type="text" id="new-group-name" placeholder="그룹명 (예: QA 파트)" class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
@@ -399,7 +403,6 @@
                                 <button type="button" onclick="toggleGroupAllMembers(false)" class="text-[11px] text-rose-500 hover:underline">해제</button>
                             </div>
                         </div>
-                        <!-- 그룹 내 팀원 체크박스 영역 높이 확장 (max-h-24 -> max-h-36) -->
                         <div id="group-members-checkboxes" class="flex flex-wrap gap-2 max-h-36 overflow-y-auto bg-white p-3 rounded-xl border border-slate-200"></div>
                     </div>
                     <div class="flex items-center justify-end space-x-2 pt-1">
@@ -449,6 +452,8 @@
         let hiddenTimer = null;
         let lastBackupData = null;
         let currentDetailEvent = null;
+        
+        let liveClockInterval = null;
 
         window.handleHiddenTrigger = function() {
             if (hiddenClickCount === 0) {
@@ -476,6 +481,30 @@
                 }
             }
         };
+
+        // 🌟 실시간 시계 작동 함수
+        function startLiveClock() {
+            const updateClock = () => {
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                
+                const days = ['일', '월', '화', '수', '목', '금', '토'];
+                const dayStr = days[now.getDay()];
+
+                const clockTextEl = document.getElementById('live-clock-text');
+                if (clockTextEl) {
+                    clockTextEl.innerText = `${year}.${month}.${day} (${dayStr}) ${hours}:${minutes}:${seconds}`;
+                }
+            };
+            updateClock();
+            if (liveClockInterval) clearInterval(liveClockInterval);
+            liveClockInterval = setInterval(updateClock, 1000);
+        }
 
         const defaultMembers = [
             { name: '강인현', isResigned: false },
@@ -760,6 +789,9 @@
         };
 
         document.addEventListener('DOMContentLoaded', function() {
+            // 🌟 페이지 진입 시 실시간 시계 상시 작동
+            startLiveClock();
+
             onValue(groupsRef, (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
@@ -915,7 +947,7 @@
                     document.getElementById('d-sub-members').innerText = subListStr;
 
                     const commentEl = document.getElementById('d-comment');
-                    commentEl.innerText = props.comment || '등록된 코멘트가 없습니다.';
+                    commentEl.innerText = props.comment || '등록된 코멘트가চ্ছু등록된 코멘트가 없습니다.';
 
                     const urlContainer = document.getElementById('d-url-container');
                     const urlLink = document.getElementById('d-url');
@@ -946,6 +978,14 @@
                 } else {
                     renderCalendarData();
                 }
+
+                // 페이지 진입/데이터 로드 시 오늘 날짜 셀로 자동 포커싱(스크롤 이동)
+                setTimeout(() => {
+                    const todayEl = document.querySelector('.fc-day-today');
+                    if (todayEl) {
+                        todayEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 300);
             });
         });
 
@@ -1539,7 +1579,7 @@
         };
 
         window.deleteGroup = function(id) {
-            const targetGroup = teamGroups.find(g => g.id === id);
+            const targetGroup = teamGroups.find(g => g.name === id);
             if (targetGroup && targetGroup.name === 'All') {
                 return alert('All 그룹은 삭제할 수 없습니다.');
             }
