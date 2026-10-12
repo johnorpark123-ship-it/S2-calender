@@ -435,6 +435,7 @@
         let teamMembers = [];
         let teamGroups = [];
         let rawCalendarData = null;
+        let holidayDatesSet = new Set();
         let isInitialLoad = true;
         
         let editingMemberId = null;
@@ -707,7 +708,6 @@
                         lastBackupData = rawCalendarData ? JSON.parse(JSON.stringify(rawCalendarData)) : {};
                         document.getElementById('undo-btn').removeAttribute('disabled');
                         update(ref(db), updates).then(() => {
-                            alert(`일정이 성공적으로 반영되었습니다!`);
                             e.target.value = '';
                         }).catch(err => {
                             alert('반영 중 오류가 발생했습니다: ' + err.message);
@@ -725,7 +725,6 @@
             if (!lastBackupData) return alert('되돌릴 수 있는 기록이 없습니다.');
             if (confirm('가장 최근 업로드 전 상태로 되돌리시겠습니까?')) {
                 set(calendarRef, lastBackupData).then(() => {
-                    alert('복원되었습니다.');
                     lastBackupData = null;
                     document.getElementById('undo-btn').setAttribute('disabled', 'true');
                 }).catch(err => alert('오류 발생: ' + err.message));
@@ -737,7 +736,6 @@
                 set(calendarRef, null).then(() => {
                     lastBackupData = null;
                     document.getElementById('undo-btn').setAttribute('disabled', 'true');
-                    alert('초기화되었습니다.');
                 }).catch(err => alert('오류 발생: ' + err.message));
             }
         };
@@ -763,7 +761,6 @@
                 if (data) {
                     teamGroups = Object.keys(data).map(key => {
                         let gName = data[key].name;
-                        // 기존에 'All'로 저장되어 있던 그룹명도 자동으로 'All(전체 인원)'으로 통일
                         if (gName === 'All') gName = 'All(전체 인원)';
                         return {
                             id: key, name: gName, color: data[key].color, members: data[key].members || []
@@ -861,12 +858,15 @@
                         const startYear = info.start.getFullYear();
                         const endYear = info.end.getFullYear();
                         let holidays = [];
+                        holidayDatesSet.clear();
                         try {
                             const years = [...new Set([startYear, endYear])];
                             for (const year of years) {
                                 const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/KR`);
                                 if (res.ok) {
                                     const data = await res.json();
+                                    data.forEach(h => holidayDatesSet.add(h.date));
+
                                     const yearHolidays = data.map(h => ({
                                         title: h.localName, start: h.date, allDay: true,
                                         color: '#fee2e2', textColor: '#dc2626', borderColor: '#fca5a5',
@@ -1021,7 +1021,8 @@
             if (id && confirm('정말 이 일정을 삭제하시겠습니까?')) {
                 remove(ref(db, 's2_team_calendar/' + id));
                 if (rawCalendarData) delete rawCalendarData[id];
-                const eventToRemove = calendar.getEventById(id); if (eventToRemove) eventToRemove.remove();
+                const eventToRemove = calendar.getEventById(id);
+                if (eventToRemove) eventToRemove.remove();
                 closeDetailModal();
             }
         };
@@ -1462,29 +1463,90 @@
 
         window.handleEventSubmit = function(e) {
             e.preventDefault();
-            const id = document.getElementById('event-id').value; const memberSelect = document.getElementById('f-member');
+            const id = document.getElementById('event-id').value; 
+            const memberSelect = document.getElementById('f-member');
             if(memberSelect.value === "") return alert('담당 주체를 선택해주세요.');
-            const member = memberSelect.value; const title = document.getElementById('f-title').value;
+            
+            const member = memberSelect.value; 
+            const title = document.getElementById('f-title').value;
+            
             let color = '#059669';
-            if (isLeaveEvent(title)) { color = '#475569'; } else {
+            if (isLeaveEvent(title)) { 
+                color = '#475569'; 
+            } else {
                 const matchedGroup = teamGroups.find(g => g.name === member);
-                if (matchedGroup) { color = matchedGroup.color; } else if (memberSelect.options[memberSelect.selectedIndex] && memberSelect.options[memberSelect.selectedIndex].dataset.color) { color = memberSelect.options[memberSelect.selectedIndex].dataset.color; }
+                if (matchedGroup) { 
+                    color = matchedGroup.color; 
+                } else if (memberSelect.options[memberSelect.selectedIndex] && memberSelect.options[memberSelect.selectedIndex].dataset.color) { 
+                    color = memberSelect.options[memberSelect.selectedIndex].dataset.color; 
+                }
             }
-            const comment = document.getElementById('f-comment').value; const url = document.getElementById('f-url').value;
-            const start = document.getElementById('f-start').value;
+
+            const comment = document.getElementById('f-comment').value; 
+            const url = document.getElementById('f-url').value;
+            const startStr = document.getElementById('f-start').value;
+            const endInputStr = document.getElementById('f-end').value;
             const subMembers = Array.from(document.querySelectorAll('.sub-member-cb:checked')).map(cb => cb.value);
-            let endObj = new Date(document.getElementById('f-end').value); endObj.setDate(endObj.getDate() + 1);
-            const end = endObj.toISOString().split('T')[0];
-            const eventData = { member, title, comment, url, start, end, color, subMembers };
 
             if (id) {
+                let endObj = new Date(endInputStr);
+                endObj.setDate(endObj.getDate() + 1);
+                const end = endObj.toISOString().split('T')[0];
+
+                const eventData = { member, title, comment, url, start: startStr, end, color, subMembers };
                 update(ref(db, 's2_team_calendar/' + id), eventData).then(() => {
-                    if (rawCalendarData && rawCalendarData[id]) { rawCalendarData[id] = eventData; renderCalendarData(); }
+                    if (rawCalendarData && rawCalendarData[id]) { 
+                        rawCalendarData[id] = eventData; 
+                        renderCalendarData(); 
+                    }
                 });
-            } else {
-                const newRef = push(calendarRef); set(newRef, eventData);
+                closeEventModal();
+                return;
             }
-            closeEventModal();
+
+            let currDate = new Date(startStr);
+            let lastDate = new Date(endInputStr);
+            
+            let createdCount = 0;
+            const updates = {};
+
+            while (currDate <= lastDate) {
+                const year = currDate.getFullYear();
+                const month = String(currDate.getMonth() + 1).padStart(2, '0');
+                const day = String(currDate.getDate()).padStart(2, '0');
+                const dateString = `${year}-${month}-${day}`;
+
+                const dayOfWeek = currDate.getDay();
+                const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                const isHoliday = holidayDatesSet.has(dateString);
+
+                if (!isWeekend && !isHoliday) {
+                    let nextDayObj = new Date(currDate);
+                    nextDayObj.setDate(nextDayObj.getDate() + 1);
+                    const nextDayStr = nextDayObj.toISOString().split('T')[0];
+
+                    const newRef = push(calendarRef);
+                    updates[newRef.key] = {
+                        member, title, comment, url,
+                        start: dateString,
+                        end: nextDayStr,
+                        color, subMembers
+                    };
+                    createdCount++;
+                }
+
+                currDate.setDate(currDate.getDate() + 1);
+            }
+
+            if (createdCount === 0) {
+                return alert('선택하신 기간 내에 평일(근무일)이 없어 생성된 일정이 없습니다.');
+            }
+
+            update(calendarRef, updates).then(() => {
+                closeEventModal();
+            }).catch(err => {
+                alert('일정 등록 중 오류 발생: ' + err.message);
+            });
         };
 
         window.handleEventDelete = function() {
@@ -1493,7 +1555,7 @@
                 remove(ref(db, 's2_team_calendar/' + id));
                 if (rawCalendarData) delete rawCalendarData[id];
                 const eventToRemove = calendar.getEventById(id); if (eventToRemove) eventToRemove.remove();
-                closeEventModal();
+                closeDetailModal();
             }
         };
     </script>
