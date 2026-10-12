@@ -61,7 +61,7 @@
 <body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased selection:bg-emerald-600 selection:text-white">
 
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm shrink-0">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div class="max-w-[120rem] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="bg-emerald-600 text-white p-2.5 rounded-xl shadow-md flex items-center justify-center">
                     <i class="fa-solid fa-calendar-days text-lg"></i>
@@ -90,6 +90,11 @@
                         <button id="undo-btn" onclick="undoExcelUpload()" disabled class="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="직전 엑셀 업로드 전 상태로 되돌립니다">
                             <i class="fa-solid fa-rotate-left"></i>
                             <span class="hidden sm:inline">업로드 취소</span>
+                        </button>
+
+                        <button onclick="changeLockTimeoutSetting()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="미리보기 고정 유지 시간 설정">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span class="hidden sm:inline">고정 시간 설정</span>
                         </button>
 
                         <button onclick="resetCalendarData()" class="bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="모든 일정을 초기화하고 공휴일만 남깁니다">
@@ -154,8 +159,28 @@
         </div>
     </header>
 
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col overflow-hidden">
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex-1 flex flex-col overflow-hidden relative">
+    <!-- 🌟 좌우 여백 균형 레이아웃: 캘린더는 정중앙, 좌측 여백에 미리보기 패널 배치 -->
+    <main class="flex-1 max-w-[120rem] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col lg:flex-row items-center lg:items-stretch justify-center gap-6 overflow-hidden">
+        
+        <!-- 좌측 여백 활용 미리보기 및 고정 패널 -->
+        <aside class="w-full lg:w-80 shrink-0 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <div id="panel-indicator" class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <h2 class="font-bold text-slate-800 text-sm" id="left-panel-header-title">일정 실시간 미리보기</h2>
+                </div>
+                <button id="left-panel-unlock-btn" onclick="unlockPreview()" class="hidden text-rose-500 hover:text-rose-700 text-xs font-semibold flex items-center space-x-1 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100 transition">
+                    <i class="fa-solid fa-lock-open"></i> <span>고정 해제</span>
+                </button>
+            </div>
+            <div id="preview-container" class="flex-1 flex flex-col justify-center items-center text-center p-6 text-slate-400 text-xs bg-slate-50 rounded-xl border border-dashed border-slate-200 overflow-y-auto">
+                <i class="fa-regular fa-hand-pointer text-2xl mb-2 text-slate-300"></i>
+                <p>캘린더의 일정에 마우스를 올리면 미리보기가 표시되며,<br><b>클릭하면 해당 미리보기가 고정</b>됩니다.</p>
+            </div>
+        </aside>
+
+        <!-- 캘린더 본문 영역 (완벽한 정중앙 위치) -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex-1 w-full max-w-5xl h-full flex flex-col overflow-hidden relative">
             <div id="calendar" class="h-full"></div>
             <div id="loading-spinner" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
                 <i class="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-500"></i>
@@ -197,66 +222,6 @@
             <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
                 <button type="button" onclick="closeDatePickerModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">취소</button>
                 <button type="button" onclick="applyDatePicker()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition">이동</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 일정 상세 보기 팝업 모달 -->
-    <div id="detail-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 class="font-bold text-slate-900 text-base" id="detail-modal-title">일정 상세 정보</h3>
-                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
-            <div class="space-y-3 text-sm">
-                <div>
-                    <span class="text-xs font-semibold text-slate-400 block">일정 제목</span>
-                    <p id="d-title" class="font-bold text-slate-800 text-base mt-0.5"></p>
-                </div>
-                <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                    <div>
-                        <span class="text-xs font-semibold text-slate-400 block">시작일</span>
-                        <p id="d-start" class="font-medium text-slate-700 mt-0.5"></p>
-                    </div>
-                    <div>
-                        <span class="text-xs font-semibold text-slate-400 block">종료일</span>
-                        <p id="d-end" class="font-medium text-slate-700 mt-0.5"></p>
-                    </div>
-                </div>
-                <div>
-                    <span class="text-xs font-semibold text-slate-400 block">담당 주체</span>
-                    <p id="d-member" class="font-medium text-slate-700 mt-0.5"></p>
-                </div>
-                <div>
-                    <span class="text-xs font-semibold text-slate-400 block">참여 인원</span>
-                    <p id="d-sub-members" class="font-medium text-slate-700 mt-0.5 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100"></p>
-                </div>
-                <div>
-                    <span class="text-xs font-semibold text-slate-400 block">문서 URL</span>
-                    <div id="d-url-container" class="mt-0.5">
-                        <a id="d-url" href="#" target="_blank" class="text-blue-600 hover:underline text-xs break-all flex items-center space-x-1.5">
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                            <span id="d-url-text"></span>
-                        </a>
-                    </div>
-                </div>
-                <div>
-                    <span class="text-xs font-semibold text-slate-400 block">코멘트 / 비고</span>
-                    <p id="d-comment" class="text-xs text-slate-600 mt-0.5 bg-slate-50 p-2.5 rounded-xl border border-slate-100 whitespace-pre-line min-h-[40px]"></p>
-                </div>
-            </div>
-            <div class="flex items-center justify-between pt-3 border-t border-slate-100 mt-4">
-                <button type="button" onclick="handleDetailDelete()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold rounded-xl transition flex items-center space-x-1.5">
-                    <i class="fa-solid fa-trash"></i>
-                    <span>삭제</span>
-                </button>
-                <div class="flex items-center space-x-2">
-                    <button type="button" onclick="closeDetailModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">닫기</button>
-                    <button type="button" onclick="switchToEditFromDetail()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition flex items-center space-x-1.5">
-                        <i class="fa-solid fa-pen"></i>
-                        <span>수정</span>
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -304,14 +269,17 @@
                     <input type="text" id="f-title" oninput="checkLeaveTitleInput()" required placeholder="예: 연차 또는 WebVMS QA 테스트" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 </div>
 
+                <!-- 🌟 관련 링크 및 제목 입력 (제목 + URL 쌍 구성) -->
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1 flex justify-between items-center">
-                        <span>문서 URL</span>
-                        <a id="f-url-link" href="#" target="_blank" class="hidden text-[10px] text-blue-600 hover:underline">
-                            <i class="fa-solid fa-arrow-up-right-from-square"></i> 열기
-                        </a>
-                    </label>
-                    <input type="url" id="f-url" placeholder="https://" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-xs font-semibold text-slate-600">관련 링크 및 제목</label>
+                        <button type="button" onclick="addUrlField()" class="text-[11px] text-emerald-600 hover:text-emerald-700 font-semibold flex items-center space-x-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 transition">
+                            <i class="fa-solid fa-plus text-[10px]"></i> <span>링크 추가</span>
+                        </button>
+                    </div>
+                    <div id="url-fields-container" class="space-y-2">
+                        <!-- 동적으로 입력 필드 생성됨 -->
+                    </div>
                 </div>
 
                 <div>
@@ -448,21 +416,19 @@
         let hiddenClickCount = 0;
         let hiddenTimer = null;
         let lastBackupData = null;
-        let currentDetailEvent = null;
         
-        let liveClockInterval = null;
-        let serverTimeOffset = 0;
+        let lockedEventId = localStorage.getItem('s2_locked_event_id') || null;
+        let lockTimer = null;
+        let lockTimeoutMinutes = parseInt(localStorage.getItem('s2_lock_timeout_min') || '5', 10);
 
         const offsetRef = ref(db, '.info/serverTimeOffset');
         onValue(offsetRef, (snap) => {
-            serverTimeOffset = snap.val() || 0;
+            window.serverTimeOffset = snap.val() || 0;
         });
 
         window.handleHiddenTrigger = function() {
             if (hiddenClickCount === 0) {
-                hiddenTimer = setTimeout(() => {
-                    hiddenClickCount = 0;
-                }, 3000);
+                hiddenTimer = setTimeout(() => { hiddenClickCount = 0; }, 3000);
             }
             hiddenClickCount++;
             if (hiddenClickCount >= 10) {
@@ -482,9 +448,25 @@
             }
         };
 
+        window.changeLockTimeoutSetting = function() {
+            const currentMin = lockTimeoutMinutes;
+            const input = prompt(`미리보기 고정 유지 시간을 설정하세요 (분 단위).\n현재 설정: ${currentMin}분`, currentMin);
+            if (input !== null) {
+                const val = parseInt(input.trim(), 10);
+                if (!isNaN(val) && val > 0) {
+                    lockTimeoutMinutes = val;
+                    localStorage.setItem('s2_lock_timeout_min', val);
+                    alert(`미리보기 고정 시간이 ${val}분으로 설정되었습니다.`);
+                    if (lockedEventId) restoreLockedPreview();
+                } else {
+                    alert('올바른 숫자를 입력해주세요.');
+                }
+            }
+        };
+
         function startLiveClock() {
             const updateClock = () => {
-                const estimatedServerTimeMs = Date.now() + serverTimeOffset;
+                const estimatedServerTimeMs = Date.now() + (window.serverTimeOffset || 0);
                 const now = new Date(estimatedServerTimeMs);
                 const year = now.getFullYear();
                 const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -502,8 +484,7 @@
                 }
             };
             updateClock();
-            if (liveClockInterval) clearInterval(liveClockInterval);
-            liveClockInterval = setInterval(updateClock, 1000);
+            setInterval(updateClock, 1000);
         }
 
         const defaultMembers = [
@@ -893,45 +874,20 @@
                     const evt = info.event;
                     if (evt.source && evt.source.id === 'korea-holidays') return;
 
-                    currentDetailEvent = evt;
-                    document.getElementById('d-title').innerText = evt.extendedProps.rawTitle || evt.title;
-                    document.getElementById('d-start').value = evt.startStr.split('T')[0];
-                    
-                    let calculatedEndStr = evt.startStr.split('T')[0];
-                    if (evt.end) {
-                        const endDate = new Date(evt.endStr);
-                        endDate.setDate(endDate.getDate() - 1);
-                        calculatedEndStr = endDate.toISOString().split('T')[0];
-                        if (calculatedEndStr < evt.startStr.split('T')[0]) {
-                            calculatedEndStr = evt.startStr.split('T')[0];
-                        }
-                    }
+                    lockedEventId = evt.id;
+                    localStorage.setItem('s2_locked_event_id', evt.id);
+                    renderPreviewBox(evt);
+                    startLockTimer();
+                },
 
-                    document.getElementById('d-start').innerText = evt.startStr.split('T')[0];
-                    document.getElementById('d-end').innerText = calculatedEndStr;
-                    document.getElementById('d-member').innerText = evt.extendedProps.member || '강인현';
+                eventMouseEnter: function(info) {
+                    if (lockedEventId) return;
+                    renderPreviewBox(info.event);
+                },
 
-                    const props = evt.extendedProps;
-                    const isGroup = teamGroups.some(g => g.name === props.member);
-                    let subListStr = '';
-                    if (isGroup) {
-                        subListStr = props.subMembers && props.subMembers.length > 0 ? props.subMembers.join(', ') : '참여 인원 없음';
-                    } else {
-                        subListStr = props.member;
-                    }
-                    document.getElementById('d-sub-members').innerText = subListStr;
-                    document.getElementById('d-comment').innerText = props.comment || '등록된 코멘트가 없습니다.';
-
-                    const urlContainer = document.getElementById('d-url-container');
-                    const urlLink = document.getElementById('d-url');
-                    const urlText = document.getElementById('d-url-text');
-                    if (props.url) {
-                        urlLink.href = props.url; urlText.innerText = props.url;
-                        urlContainer.classList.remove('hidden');
-                    } else {
-                        urlContainer.classList.add('hidden');
-                    }
-                    document.getElementById('detail-modal').classList.remove('hidden');
+                eventMouseLeave: function(info) {
+                    if (lockedEventId) return;
+                    resetPreviewBoxToDefault();
                 },
                 
                 eventDrop: function(info) { updateEventDates(info.event); },
@@ -946,8 +902,23 @@
                 if (isInitialLoad) {
                     renderCalendarData();
                     isInitialLoad = false;
+                    if (lockedEventId && calendar) {
+                        setTimeout(() => {
+                            const lockedEvt = calendar.getEventById(lockedEventId);
+                            if (lockedEvt) {
+                                renderPreviewBox(lockedEvt);
+                                startLockTimer();
+                            } else {
+                                unlockPreview();
+                            }
+                        }, 500);
+                    }
                 } else {
                     renderCalendarData();
+                    if (lockedEventId && calendar) {
+                        const lockedEvt = calendar.getEventById(lockedEventId);
+                        if (lockedEvt) renderPreviewBox(lockedEvt);
+                    }
                 }
 
                 setTimeout(() => {
@@ -959,11 +930,151 @@
             });
         });
 
-        window.switchToEditFromDetail = function() {
-            if (!currentDetailEvent) return;
-            closeDetailModal();
+        function startLockTimer() {
+            if (lockTimer) clearTimeout(lockTimer);
+            const timeoutMs = lockTimeoutMinutes * 60 * 1000;
+            lockTimer = setTimeout(() => {
+                unlockPreview();
+            }, timeoutMs);
+        }
 
-            const evt = currentDetailEvent;
+        window.unlockPreview = function() {
+            if (lockTimer) clearTimeout(lockTimer);
+            lockedEventId = null;
+            localStorage.removeItem('s2_locked_event_id');
+            resetPreviewBoxToDefault();
+        };
+
+        function resetPreviewBoxToDefault() {
+            if (lockedEventId) return;
+            document.getElementById('left-panel-header-title').innerText = "일정 실시간 미리보기";
+            document.getElementById('panel-indicator').className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+            document.getElementById('left-panel-unlock-btn').classList.add('hidden');
+
+            const previewContainer = document.getElementById('preview-container');
+            previewContainer.className = "flex-1 flex flex-col justify-center items-center text-center p-6 text-slate-400 text-xs bg-slate-50 rounded-xl border border-dashed border-slate-200 overflow-y-auto";
+            previewContainer.innerHTML = `
+                <i class="fa-regular fa-hand-pointer text-2xl mb-2 text-slate-300"></i>
+                <p>캘린더의 일정에 마우스를 올리면 미리보기가 표시되며,<br><b>클릭하면 해당 미리보기가 고정</b>됩니다.</p>
+            `;
+        }
+
+        // 🌟 웹 주소 형식인지 엄격하게 판별하는 함수
+        function isWebUrl(str) {
+            if (!str) return false;
+            let u = str.trim().toLowerCase();
+            return u.startsWith('http://') || u.startsWith('https://') || u.startsWith('www.');
+        }
+
+        // 🌟 웹 주소일 때만 올바른 링크 형태로 변환
+        function formatWebUrl(rawUrl) {
+            if (!rawUrl) return '#';
+            let u = rawUrl.trim();
+            if (u.startsWith('www.')) {
+                return 'http://' + u;
+            }
+            return u;
+        }
+
+        function renderPreviewBox(evt) {
+            const previewContainer = document.getElementById('preview-container');
+            if (!previewContainer) return;
+
+            const isHoliday = (evt.source && evt.source.id === 'korea-holidays');
+            const title = evt.extendedProps.rawTitle || evt.title;
+            const member = evt.extendedProps.member || (isHoliday ? '공휴일' : '강인현');
+            const startStr = evt.startStr.split('T')[0];
+            
+            let endStr = startStr;
+            if (evt.end) {
+                const endDate = new Date(evt.endStr);
+                endDate.setDate(endDate.getDate() - 1);
+                endStr = endDate.toISOString().split('T')[0];
+                if (endStr < startStr) endStr = startStr;
+            }
+
+            const comment = evt.extendedProps.comment || '등록된 코멘트가 없습니다.';
+            const urlData = evt.extendedProps.url || '';
+            const subMembers = evt.extendedProps.subMembers || [];
+            const isGroup = teamGroups.some(g => g.name === member);
+
+            let subListHtml = '';
+            if (isGroup && subMembers.length > 0) {
+                subListHtml = `<div class="mt-2 pt-2 border-t border-slate-100"><span class="font-semibold text-slate-500 block mb-1">참여 인원 (${subMembers.length}명)</span><p class="text-slate-700 text-[11px] leading-relaxed">${subMembers.join(', ')}</p></div>`;
+            } else if (!isGroup && !isHoliday) {
+                subListHtml = `<div class="mt-2 pt-2 border-t border-slate-100"><span class="font-semibold text-slate-500 block mb-1">담당자</span><p class="text-slate-700 text-[11px]">${member}</p></div>`;
+            }
+
+            // 🌟 [제목 + 링크] 형식 파싱 및 웹 주소일 때만 하이퍼링크 적용
+            let urlHtml = '';
+            if (urlData) {
+                const lines = urlData.split('\n').map(l => l.trim()).filter(l => l !== '');
+                if (lines.length > 0) {
+                    urlHtml = `<div class="mt-2 pt-2 border-t border-slate-100 space-y-1.5"><span class="font-semibold text-slate-500 block">관련 링크</span>`;
+                    lines.forEach((line) => {
+                        let linkTitle = "관련 링크";
+                        let linkVal = line;
+                        
+                        if (line.includes('|')) {
+                            const parts = line.split('|');
+                            linkTitle = parts[0].trim();
+                            linkVal = parts[1].trim();
+                        }
+
+                        if (isWebUrl(linkVal)) {
+                            const safeHref = formatWebUrl(linkVal);
+                            urlHtml += `
+                                <a href="${safeHref}" target="_blank" class="block bg-blue-50/60 hover:bg-blue-100/60 border border-blue-100 p-2 rounded-lg transition text-[11px]">
+                                    <div class="font-bold text-blue-800 flex items-center space-x-1">
+                                        <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                                        <span>${linkTitle}</span>
+                                    </div>
+                                    <div class="text-blue-600 truncate mt-0.5">${linkVal}</div>
+                                </a>`;
+                        } else {
+                            // 로컬 디렉토리 경로 등 웹 주소가 아닌 경우 일반 텍스트 상자로 표시
+                            urlHtml += `
+                                <div class="bg-slate-50 border border-slate-200 p-2 rounded-lg text-[11px]">
+                                    <div class="font-bold text-slate-700">${linkTitle}</div>
+                                    <div class="text-slate-500 truncate mt-0.5 select-all" title="로컬 경로 (복사 가능)">${linkVal}</div>
+                                </div>`;
+                        }
+                    });
+                    urlHtml += `</div>`;
+                }
+            }
+
+            if (lockedEventId === evt.id) {
+                document.getElementById('left-panel-header-title').innerText = "고정된 일정 정보";
+                document.getElementById('panel-indicator').className = "w-2 h-2 rounded-full bg-purple-500 animate-ping";
+                document.getElementById('left-panel-unlock-btn').classList.remove('hidden');
+            }
+
+            previewContainer.className = "flex-1 flex flex-col justify-between items-stretch text-left p-4 text-xs bg-white rounded-xl border border-emerald-300 shadow-sm transition-all";
+            previewContainer.innerHTML = `
+                <div class="w-full space-y-2 overflow-y-auto pr-1">
+                    <div class="flex items-center justify-between">
+                        <span class="px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm" style="background-color: ${evt.backgroundColor || '#059669'};">${member}</span>
+                        <span class="text-[10px] text-slate-400">${startStr}${startStr !== endStr ? ' ~ ' + endStr : ''}</span>
+                    </div>
+                    <h3 class="font-bold text-slate-900 text-sm leading-snug">${title}</h3>
+                    <p class="text-slate-600 text-[11px] bg-slate-50 p-2.5 rounded-lg border border-slate-100 whitespace-pre-line">${comment}</p>
+                    ${subListHtml}
+                    ${urlHtml}
+                </div>
+                ${!isHoliday ? `
+                <div class="pt-3 mt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
+                    <button onclick="editEventFromPreview('${evt.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm transition flex items-center space-x-1">
+                        <i class="fa-solid fa-pen text-[10px]"></i> <span>수정</span>
+                    </button>
+                </div>` : ''}
+            `;
+        }
+
+        window.editEventFromPreview = function(eventId) {
+            const evt = calendar.getEventById(eventId);
+            if (!evt) return;
+
             document.getElementById('modal-title').innerText = "일정 수정";
             document.getElementById('event-id').value = evt.id;
             document.getElementById('f-title').value = evt.extendedProps.rawTitle || evt.title;
@@ -1000,30 +1111,65 @@
             });
             
             document.getElementById('f-comment').value = evt.extendedProps.comment || '';
-            const linkVal = evt.extendedProps.url || '';
-            document.getElementById('f-url').value = linkVal;
-            const linkBtn = document.getElementById('f-url-link');
-            if(linkVal) {
-                linkBtn.href = linkVal; linkBtn.classList.remove('hidden');
-            } else {
-                linkBtn.classList.add('hidden');
-            }
             
+            const urlData = evt.extendedProps.url || '';
+            const linkItems = [];
+            if (urlData) {
+                urlData.split('\n').forEach(line => {
+                    if (line.includes('|')) {
+                        const parts = line.split('|');
+                        linkItems.push({ title: parts[0].trim(), url: parts[1].trim() });
+                    } else if (line.trim() !== '') {
+                        linkItems.push({ title: '관련 링크', url: line.trim() });
+                    }
+                });
+            }
+            renderUrlFields(linkItems.length > 0 ? linkItems : [{ title: '', url: '' }]);
+
             document.getElementById('modal-delete-btn').classList.remove('hidden');
             document.getElementById('event-modal').classList.remove('hidden');
         };
 
-        window.closeDetailModal = function() { document.getElementById('detail-modal').classList.add('hidden'); };
+        // 🌟 링크 제목과 주소를 각각 입력받는 필드 렌더링 함수
+        window.renderUrlFields = function(items) {
+            const container = document.getElementById('url-fields-container');
+            container.innerHTML = '';
+            const totalCount = items.length;
+            
+            items.forEach((item) => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex items-center space-x-2';
+                wrapper.innerHTML = `
+                    <input type="text" value="${item.title || ''}" placeholder="링크 제목 (예: 가이드 문서)" class="url-title-input w-1/3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <input type="text" value="${item.url || ''}" placeholder="URL 또는 C:\\ 폴더 경로" class="url-input-item flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    ${totalCount > 1 ? `<button type="button" onclick="removeUrlField(this)" class="bg-rose-50 hover:bg-rose-100 text-rose-500 p-2.5 rounded-xl transition text-xs shrink-0" title="링크 삭제"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                `;
+                container.appendChild(wrapper);
+            });
+        };
 
-        window.handleDetailDelete = function() {
-            if (!currentDetailEvent) return;
-            const id = currentDetailEvent.id;
-            if (id && confirm('정말 이 일정을 삭제하시겠습니까?')) {
-                remove(ref(db, 's2_team_calendar/' + id));
-                if (rawCalendarData) delete rawCalendarData[id];
-                const eventToRemove = calendar.getEventById(id);
-                if (eventToRemove) eventToRemove.remove();
-                closeDetailModal();
+        window.addUrlField = function() {
+            const container = document.getElementById('url-fields-container');
+            const rows = container.querySelectorAll('.flex');
+            const currentItems = Array.from(rows).map(row => ({
+                title: row.querySelector('.url-title-input').value,
+                url: row.querySelector('.url-input-item').value
+            }));
+            currentItems.push({ title: '', url: '' });
+            renderUrlFields(currentItems);
+        };
+
+        window.removeUrlField = function(btn) {
+            const wrapper = btn.parentElement;
+            const container = document.getElementById('url-fields-container');
+            if (container.children.length > 1) {
+                wrapper.remove();
+                const rows = container.querySelectorAll('.flex');
+                const currentItems = Array.from(rows).map(row => ({
+                    title: row.querySelector('.url-title-input').value,
+                    url: row.querySelector('.url-input-item').value
+                }));
+                renderUrlFields(currentItems);
             }
         };
 
@@ -1449,8 +1595,10 @@
 
         window.openEventModal = function() {
             document.getElementById('modal-title').innerText = "일정 등록"; document.getElementById('event-id').value = "";
-            document.getElementById('f-title').value = ""; document.getElementById('f-comment').value = ""; document.getElementById('f-url').value = "";
-            document.getElementById('f-url-link').classList.add('hidden');
+            document.getElementById('f-title').value = ""; document.getElementById('f-comment').value = "";
+            
+            renderUrlFields([{ title: '', url: '' }]);
+
             const selectEl = document.getElementById('f-member');
             if (selectEl.options.length > 0) selectEl.selectedIndex = 0;
             const today = new Date().toISOString().split('T')[0];
@@ -1483,7 +1631,20 @@
             }
 
             const comment = document.getElementById('f-comment').value; 
-            const url = document.getElementById('f-url').value;
+            
+            // 🌟 입력된 [제목|주소] 형태로 조합하여 줄바꿈(\n)으로 저장
+            const rows = document.querySelectorAll('#url-fields-container .flex');
+            const urlLines = [];
+            rows.forEach(row => {
+                const tVal = row.querySelector('.url-title-input').value.trim();
+                const uVal = row.querySelector('.url-input-item').value.trim();
+                if (uVal !== '') {
+                    const finalTitle = tVal !== '' ? tVal : '관련 링크';
+                    urlLines.push(`${finalTitle}|${uVal}`);
+                }
+            });
+            const url = urlLines.join('\n');
+
             const startStr = document.getElementById('f-start').value;
             const endInputStr = document.getElementById('f-end').value;
             const subMembers = Array.from(document.querySelectorAll('.sub-member-cb:checked')).map(cb => cb.value);
@@ -1498,6 +1659,10 @@
                     if (rawCalendarData && rawCalendarData[id]) { 
                         rawCalendarData[id] = eventData; 
                         renderCalendarData(); 
+                        if (lockedEventId === id) {
+                            const updatedEvt = calendar.getEventById(id);
+                            if (updatedEvt) renderPreviewBox(updatedEvt);
+                        }
                     }
                 });
                 closeEventModal();
@@ -1554,8 +1719,10 @@
             if (id && confirm('정말 이 일정을 삭제하시겠습니까?')) {
                 remove(ref(db, 's2_team_calendar/' + id));
                 if (rawCalendarData) delete rawCalendarData[id];
-                const eventToRemove = calendar.getEventById(id); if (eventToRemove) eventToRemove.remove();
-                closeDetailModal();
+                const eventToRemove = calendar.getEventById(id); 
+                if (eventToRemove) eventToRemove.remove();
+                if (lockedEventId === id) unlockPreview();
+                closeEventModal();
             }
         };
     </script>
