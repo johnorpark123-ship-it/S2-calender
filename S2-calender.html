@@ -12,10 +12,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- FullCalendar JS -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
-    <!-- Tippy.js (마우스 호버 툴팁용) -->
-    <script src="https://unpkg.com/@popperjs/core@2"></script>
-    <script src="https://unpkg.com/tippy.js@6"></script>
-    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/animations/scale.css"/>
     <!-- SheetJS (엑셀 파싱용) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -31,14 +27,22 @@
         .fc-event { cursor: pointer; border: none; padding: 2px 4px; font-size: 11px; font-weight: 600; border-radius: 4px; }
         .fc-daygrid-day-number { color: #475569; font-weight: 500; font-size: 12px; padding: 8px !important; }
         .fc-header-toolbar { margin-bottom: 1.5rem !important; }
-        .fc-toolbar-title { font-size: 1.25rem !important; font-weight: 700; color: #0f172a; }
+        
+        /* 캘린더 타이틀 클릭 가능하도록 커서 추가 */
+        .fc-toolbar-title { font-size: 1.25rem !important; font-weight: 700; color: #0f172a; cursor: pointer; transition: color 0.2s; }
+        .fc-toolbar-title:hover { color: #059669; }
         
         .holiday-event { text-align: center; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
 
-        /* 목록 보기(List View)에서 시간/종일 텍스트 영역을 완전히 숨김 */
         .fc-list-event-time { display: none !important; }
 
-        /* 오늘 날짜 직관적 강조 */
+        /* 주말 배경색 분리 (토요일: 연한 푸른색, 일요일: 연한 붉은색) */
+        .fc-day-sat { background-color: rgba(239, 246, 255, 0.6) !important; } 
+        .fc-day-sun { background-color: rgba(254, 242, 242, 0.6) !important; } 
+
+        .fc-col-header-cell.fc-day-sat { color: #2563eb !important; }
+        .fc-col-header-cell.fc-day-sun { color: #dc2626 !important; }
+
         .fc-theme-standard .fc-day-today { 
             background-color: #ecfdf5 !important; 
             box-shadow: inset 0 0 0 2px #34d399 !important; 
@@ -55,9 +59,6 @@
         .fc-daygrid-day-events {
             padding-bottom: 28px !important; 
         }
-
-        .tippy-box { background-color: #0f172a; color: #f8fafc; border-radius: 12px; font-size: 12px; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); padding: 4px; }
-        .tippy-content { padding: 8px 12px; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased selection:bg-emerald-600 selection:text-white">
@@ -69,7 +70,7 @@
                     <i class="fa-solid fa-calendar-days text-lg"></i>
                 </div>
                 <div>
-                    <h1 onclick="handleHiddenTrigger()" class="font-bold text-base sm:text-lg text-slate-950 tracking-tight flex items-center space-x-2 cursor-pointer select-none" title="연속 클릭 시 개발자 메뉴 활성화">
+                    <h1 onclick="handleHiddenTrigger()" class="font-bold text-base sm:text-lg text-slate-950 tracking-tight flex items-center space-x-2 cursor-pointer select-none" title="3초 내에 10번 연속 클릭 시 개발자 메뉴 활성화">
                         <span>S2팀 통합 일정 캘린더</span>
                     </h1>
                 </div>
@@ -98,39 +99,41 @@
                     <span class="hidden sm:inline">온보딩 포털</span>
                 </a>
 
+                <!-- 🌟 필터 드롭다운 크기 확장 (w-72 -> w-96) -->
                 <div class="relative" id="filter-container">
                     <button onclick="toggleFilterDropdown(event)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 transition flex items-center space-x-1.5">
                         <i class="fa-solid fa-filter text-emerald-600"></i>
                         <span class="hidden sm:inline">필터</span>
                     </button>
-                    <div id="filter-dropdown" class="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-40 hidden space-y-3.5" onclick="event.stopPropagation()">
+                    <div id="filter-dropdown" class="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-5 z-40 hidden space-y-4" onclick="event.stopPropagation()">
                         <div>
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1.5">
-                                <span class="text-[11px] font-bold text-slate-800">휴가 필터</span>
-                                <div class="space-x-1">
-                                    <button onclick="selectAllFilters('leave', true)" class="text-[10px] text-blue-600 hover:underline">선택</button>
-                                    <button onclick="selectAllFilters('leave', false)" class="text-[10px] text-rose-500 hover:underline">해제</button>
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                                <span class="text-xs font-bold text-slate-800">휴가 필터</span>
+                                <div class="space-x-1.5">
+                                    <button onclick="selectAllFilters('leave', true)" class="text-[11px] text-blue-600 hover:underline">선택</button>
+                                    <button onclick="selectAllFilters('leave', false)" class="text-[11px] text-rose-500 hover:underline">해제</button>
                                 </div>
                             </div>
                             <div id="filter-leave-checkboxes" class="space-y-1 text-xs pr-1"></div>
                         </div>
                         <div>
-                            <div class="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1.5">
-                                <span class="text-[11px] font-bold text-slate-800">담당자별 필터</span>
-                                <div class="space-x-1">
-                                    <button onclick="selectAllFilters('member', true)" class="text-[10px] text-blue-600 hover:underline">전체</button>
-                                    <button onclick="selectAllFilters('member', false)" class="text-[10px] text-rose-500 hover:underline">해제</button>
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                                <span class="text-xs font-bold text-slate-800">담당자별 필터</span>
+                                <div class="space-x-1.5">
+                                    <button onclick="selectAllFilters('member', true)" class="text-[11px] text-blue-600 hover:underline">전체</button>
+                                    <button onclick="selectAllFilters('member', false)" class="text-[11px] text-rose-500 hover:underline">해제</button>
                                 </div>
                             </div>
-                            <div class="mb-2">
+                            <div class="mb-2.5">
                                 <div class="relative">
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 pointer-events-none text-slate-400">
-                                        <i class="fa-solid fa-magnifying-glass text-[11px]"></i>
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                        <i class="fa-solid fa-magnifying-glass text-xs"></i>
                                     </span>
-                                    <input type="text" id="filter-search-input" oninput="filterMemberCheckboxes()" placeholder="담당자 또는 그룹 검색..." class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                    <input type="text" id="filter-search-input" oninput="filterMemberCheckboxes()" placeholder="담당자 또는 그룹 검색..." class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500">
                                 </div>
                             </div>
-                            <div id="filter-member-checkboxes" class="max-h-48 overflow-y-auto space-y-1 text-xs pr-1"></div>
+                            <!-- 담당자 목록 높이 확장 (max-h-48 -> max-h-72) -->
+                            <div id="filter-member-checkboxes" class="max-h-72 overflow-y-auto space-y-1.5 text-xs pr-1"></div>
                         </div>
                     </div>
                 </div>
@@ -155,6 +158,105 @@
             </div>
         </div>
     </main>
+
+    <!-- 연도/월 선택 모달 팝업 -->
+    <div id="date-picker-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-xs w-full p-6 space-y-4 border border-slate-100">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base">원하는 연도 및 월 선택</h3>
+                <button onclick="closeDatePickerModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">연도</label>
+                    <select id="picker-year" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                        <!-- JS에서 동적 생성 -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">월</label>
+                    <select id="picker-month" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                        <option value="0">1월</option>
+                        <option value="1">2월</option>
+                        <option value="2">3월</option>
+                        <option value="3">4월</option>
+                        <option value="4">5월</option>
+                        <option value="5">6월</option>
+                        <option value="6">7월</option>
+                        <option value="7">8월</option>
+                        <option value="8">9월</option>
+                        <option value="9">10월</option>
+                        <option value="10">11월</option>
+                        <option value="11">12월</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeDatePickerModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">취소</button>
+                <button type="button" onclick="applyDatePicker()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition">이동</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 일정 상세 보기 팝업 모달 -->
+    <div id="detail-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base" id="detail-modal-title">일정 상세 정보</h3>
+                <button onclick="closeDetailModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="space-y-3 text-sm">
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 block">일정 제목</span>
+                    <p id="d-title" class="font-bold text-slate-800 text-base mt-0.5"></p>
+                </div>
+                <div class="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div>
+                        <span class="text-xs font-semibold text-slate-400 block">시작일</span>
+                        <p id="d-start" class="font-medium text-slate-700 mt-0.5"></p>
+                    </div>
+                    <div>
+                        <span class="text-xs font-semibold text-slate-400 block">종료일</span>
+                        <p id="d-end" class="font-medium text-slate-700 mt-0.5"></p>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 block">담당 주체</span>
+                    <p id="d-member" class="font-medium text-slate-700 mt-0.5"></p>
+                </div>
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 block">참여 인원</span>
+                    <p id="d-sub-members" class="font-medium text-slate-700 mt-0.5 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-100"></p>
+                </div>
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 block">문서 URL</span>
+                    <div id="d-url-container" class="mt-0.5">
+                        <a id="d-url" href="#" target="_blank" class="text-blue-600 hover:underline text-xs break-all flex items-center space-x-1.5">
+                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                            <span id="d-url-text"></span>
+                        </a>
+                    </div>
+                </div>
+                <div>
+                    <span class="text-xs font-semibold text-slate-400 block">코멘트 / 비고</span>
+                    <p id="d-comment" class="text-xs text-slate-600 mt-0.5 bg-slate-50 p-2.5 rounded-xl border border-slate-100 whitespace-pre-line min-h-[40px]"></p>
+                </div>
+            </div>
+            <div class="flex items-center justify-between pt-3 border-t border-slate-100 mt-4">
+                <button type="button" onclick="handleDetailDelete()" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold rounded-xl transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-trash"></i>
+                    <span>삭제</span>
+                </button>
+                <div class="flex items-center space-x-2">
+                    <button type="button" onclick="closeDetailModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">닫기</button>
+                    <button type="button" onclick="switchToEditFromDetail()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-pen"></i>
+                        <span>수정</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- 일정 추가/수정 모달 -->
     <div id="event-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -228,77 +330,81 @@
         </div>
     </div>
 
-    <!-- 팀원 및 그룹 관리 모달 -->
+    <!-- 🌟 팀원 및 그룹 관리 모달 크기 확장 (max-w-[420px] -> max-w-xl) -->
     <div id="member-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-xl max-w-[420px] w-full p-6 space-y-4 border border-slate-100 max-h-[90vh] overflow-y-auto">
-            <div class="flex items-center justify-between pb-2">
-                <h3 class="font-bold text-slate-900 text-base">팀원 및 그룹 조직 관리</h3>
-                <button onclick="closeMemberModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+        <div class="bg-white rounded-2xl shadow-xl max-w-xl w-full p-6 sm:p-8 space-y-6 border border-slate-100 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                <h3 class="font-bold text-slate-900 text-lg">팀원 및 그룹 조직 관리</h3>
+                <button onclick="closeMemberModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-xl"></i></button>
             </div>
             
             <div class="flex border-b border-slate-200">
-                <button id="tab-member" onclick="switchTab('member')" class="flex-1 pb-2 border-b-2 border-emerald-600 text-emerald-600 font-bold text-sm transition">개인 팀원</button>
-                <button id="tab-group" onclick="switchTab('group')" class="flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-semibold text-sm transition">그룹 단위</button>
+                <button id="tab-member" onclick="switchTab('member')" class="flex-1 pb-2.5 border-b-2 border-emerald-600 text-emerald-600 font-bold text-sm transition">개인 팀원</button>
+                <button id="tab-group" onclick="switchTab('group')" class="flex-1 pb-2.5 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-semibold text-sm transition">그룹 단위</button>
             </div>
             
-            <div id="sec-member" class="space-y-4">
-                <div class="border rounded-xl p-3 max-h-36 overflow-y-auto space-y-2 bg-slate-50" id="member-list-container"></div>
+            <div id="sec-member" class="space-y-5">
+                <!-- 활성 팀원 목록 상자 높이 확장 (max-h-36 -> max-h-60) -->
+                <div class="border rounded-xl p-4 max-h-60 overflow-y-auto space-y-2.5 bg-slate-50" id="member-list-container"></div>
                 
-                <div class="space-y-1">
-                    <button type="button" onclick="toggleResignedSection()" class="w-full flex items-center justify-between text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition">
+                <div class="space-y-1.5">
+                    <button type="button" onclick="toggleResignedSection()" class="w-full flex items-center justify-between text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 p-2.5 rounded-lg transition">
                         <span>📂 퇴사한 팀원 보기 (<span id="resigned-count">0</span>명)</span>
-                        <i id="resigned-arrow" class="fa-solid fa-chevron-down text-[10px]"></i>
+                        <i id="resigned-arrow" class="fa-solid fa-chevron-down text-xs"></i>
                     </button>
-                    <div id="resigned-list-container" class="hidden border rounded-xl p-3 max-h-32 overflow-y-auto space-y-2 bg-slate-100/60"></div>
+                    <!-- 퇴사자 목록 상자 높이 확장 (max-h-32 -> max-h-48) -->
+                    <div id="resigned-list-container" class="hidden border rounded-xl p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-100/60"></div>
                 </div>
 
-                <div class="bg-slate-100 p-3 rounded-xl space-y-3 border border-slate-200">
-                    <input type="text" id="new-member-name" placeholder="새 팀원 이름 입력" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <div class="bg-slate-100 p-4 rounded-xl space-y-3.5 border border-slate-200">
+                    <input type="text" id="new-member-name" placeholder="새 팀원 이름 입력" class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     
                     <div id="resigned-checkbox-wrapper" class="hidden">
-                        <label class="flex items-center space-x-1.5 text-xs cursor-pointer">
-                            <input type="checkbox" id="new-member-resigned" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300">
+                        <label class="flex items-center space-x-2 text-xs cursor-pointer">
+                            <input type="checkbox" id="new-member-resigned" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4">
                             <span class="font-medium text-slate-600">퇴사 여부 체크</span>
                         </label>
                     </div>
 
                     <div class="flex items-center justify-end space-x-2 pt-1">
-                        <button id="member-cancel-btn" onclick="cancelEditMember()" class="hidden px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-lg transition">취소</button>
-                        <button id="member-save-btn" onclick="saveMember()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition">팀원 추가</button>
+                        <button id="member-cancel-btn" onclick="cancelEditMember()" class="hidden px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-lg transition">취소</button>
+                        <button id="member-save-btn" onclick="saveMember()" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition">팀원 추가</button>
                     </div>
                 </div>
             </div>
 
-            <div id="sec-group" class="space-y-4 hidden">
-                <div class="border rounded-xl p-3 max-h-40 overflow-y-auto space-y-2 bg-slate-50" id="group-list-container"></div>
-                <div class="bg-slate-100 p-3 rounded-xl space-y-3 border border-slate-200">
-                    <input type="text" id="new-group-name" placeholder="그룹명 (예: QA 파트)" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <div id="sec-group" class="space-y-5 hidden">
+                <!-- 그룹 목록 상자 높이 확장 (max-h-40 -> max-h-60) -->
+                <div class="border rounded-xl p-4 max-h-60 overflow-y-auto space-y-2.5 bg-slate-50" id="group-list-container"></div>
+                <div class="bg-slate-100 p-4 rounded-xl space-y-4 border border-slate-200">
+                    <input type="text" id="new-group-name" placeholder="그룹명 (예: QA 파트)" class="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     <div>
-                        <label class="block text-[11px] font-semibold text-slate-500 mb-1.5">대표 색상</label>
-                        <div class="flex flex-wrap gap-2" id="group-color-palette">
-                            <button type="button" onclick="selectColor('#059669', this, 'group')" class="w-6 h-6 rounded-full bg-[#059669] ring-2 ring-offset-2 ring-slate-400 transition color-btn" data-color="#059669"></button>
-                            <button type="button" onclick="selectColor('#2563eb', this, 'group')" class="w-6 h-6 rounded-full bg-[#2563eb] border border-transparent transition color-btn" data-color="#2563eb"></button>
-                            <button type="button" onclick="selectColor('#7c3aed', this, 'group')" class="w-6 h-6 rounded-full bg-[#7c3aed] border border-transparent transition color-btn" data-color="#7c3aed"></button>
-                            <button type="button" onclick="selectColor('#db2777', this, 'group')" class="w-6 h-6 rounded-full bg-[#db2777] border border-transparent transition color-btn" data-color="#db2777"></button>
-                            <button type="button" onclick="selectColor('#ea580c', this, 'group')" class="w-6 h-6 rounded-full bg-[#ea580c] border border-transparent transition color-btn" data-color="#ea580c"></button>
-                            <button type="button" onclick="selectColor('#eab308', this, 'group')" class="w-6 h-6 rounded-full bg-[#eab308] border border-transparent transition color-btn" data-color="#eab308"></button>
-                            <button type="button" onclick="selectColor('#0ea5e9', this, 'group')" class="w-6 h-6 rounded-full bg-[#0ea5e9] border border-transparent transition color-btn" data-color="#0ea5e9"></button>
-                            <button type="button" onclick="selectColor('#475569', this, 'group')" class="w-6 h-6 rounded-full bg-[#475569] border border-transparent transition color-btn" data-color="#475569" title="휴가 전용 회색"></button>
+                        <label class="block text-xs font-semibold text-slate-500 mb-2">대표 색상</label>
+                        <div class="flex flex-wrap gap-2.5" id="group-color-palette">
+                            <button type="button" onclick="selectColor('#059669', this, 'group')" class="w-7 h-7 rounded-full bg-[#059669] ring-2 ring-offset-2 ring-slate-400 transition color-btn" data-color="#059669"></button>
+                            <button type="button" onclick="selectColor('#2563eb', this, 'group')" class="w-7 h-7 rounded-full bg-[#2563eb] border border-transparent transition color-btn" data-color="#2563eb"></button>
+                            <button type="button" onclick="selectColor('#7c3aed', this, 'group')" class="w-7 h-7 rounded-full bg-[#7c3aed] border border-transparent transition color-btn" data-color="#7c3aed"></button>
+                            <button type="button" onclick="selectColor('#db2777', this, 'group')" class="w-7 h-7 rounded-full bg-[#db2777] border border-transparent transition color-btn" data-color="#db2777"></button>
+                            <button type="button" onclick="selectColor('#ea580c', this, 'group')" class="w-7 h-7 rounded-full bg-[#ea580c] border border-transparent transition color-btn" data-color="#ea580c"></button>
+                            <button type="button" onclick="selectColor('#eab308', this, 'group')" class="w-7 h-7 rounded-full bg-[#eab308] border border-transparent transition color-btn" data-color="#eab308"></button>
+                            <button type="button" onclick="selectColor('#0ea5e9', this, 'group')" class="w-7 h-7 rounded-full bg-[#0ea5e9] border border-transparent transition color-btn" data-color="#0ea5e9"></button>
+                            <button type="button" onclick="selectColor('#475569', this, 'group')" class="w-7 h-7 rounded-full bg-[#475569] border border-transparent transition color-btn" data-color="#475569" title="휴가 전용 회색"></button>
                         </div>
                     </div>
                     <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <label class="block text-[11px] font-semibold text-slate-500">포함할 팀원 선택 (활성 팀원만)</label>
-                            <div class="space-x-1">
-                                <button type="button" onclick="toggleGroupAllMembers(true)" class="text-[10px] text-blue-600 hover:underline">전체</button>
-                                <button type="button" onclick="toggleGroupAllMembers(false)" class="text-[10px] text-rose-500 hover:underline">해제</button>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-xs font-semibold text-slate-500">포함할 팀원 선택 (활성 팀원만)</label>
+                            <div class="space-x-1.5">
+                                <button type="button" onclick="toggleGroupAllMembers(true)" class="text-[11px] text-blue-600 hover:underline">전체</button>
+                                <button type="button" onclick="toggleGroupAllMembers(false)" class="text-[11px] text-rose-500 hover:underline">해제</button>
                             </div>
                         </div>
-                        <div id="group-members-checkboxes" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto"></div>
+                        <!-- 그룹 내 팀원 체크박스 영역 높이 확장 (max-h-24 -> max-h-36) -->
+                        <div id="group-members-checkboxes" class="flex flex-wrap gap-2 max-h-36 overflow-y-auto bg-white p-3 rounded-xl border border-slate-200"></div>
                     </div>
                     <div class="flex items-center justify-end space-x-2 pt-1">
-                        <button id="group-cancel-btn" onclick="cancelEditGroup()" class="hidden px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-lg transition">취소</button>
-                        <button id="group-save-btn" onclick="saveGroup()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition">그룹 추가</button>
+                        <button id="group-cancel-btn" onclick="cancelEditGroup()" class="hidden px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-lg transition">취소</button>
+                        <button id="group-save-btn" onclick="saveGroup()" class="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold rounded-lg transition">그룹 추가</button>
                     </div>
                 </div>
             </div>
@@ -342,13 +448,19 @@
         let hiddenClickCount = 0;
         let hiddenTimer = null;
         let lastBackupData = null;
+        let currentDetailEvent = null;
 
         window.handleHiddenTrigger = function() {
+            if (hiddenClickCount === 0) {
+                hiddenTimer = setTimeout(() => {
+                    hiddenClickCount = 0;
+                }, 3000);
+            }
+
             hiddenClickCount++;
-            clearTimeout(hiddenTimer);
-            hiddenTimer = setTimeout(() => { hiddenClickCount = 0; }, 3000);
 
             if (hiddenClickCount >= 10) {
+                clearTimeout(hiddenTimer);
                 hiddenClickCount = 0;
                 const adminDiv = document.getElementById('hidden-admin-buttons');
                 const isHidden = adminDiv.classList.contains('hidden');
@@ -379,6 +491,42 @@
             const t = title.replace(/\s+/g, '');
             return t.includes('연차') || t.includes('반차');
         }
+
+        function initDatePickerOptions() {
+            const yearSelect = document.getElementById('picker-year');
+            yearSelect.innerHTML = '';
+            const currentYear = new Date().getFullYear();
+            for (let y = currentYear - 5; y <= currentYear + 5; y++) {
+                const opt = document.createElement('option');
+                opt.value = y;
+                opt.textContent = `${y}년`;
+                yearSelect.appendChild(opt);
+            }
+        }
+
+        window.openDatePickerModal = function() {
+            initDatePickerOptions();
+            if (calendar) {
+                const currentDate = calendar.getDate();
+                document.getElementById('picker-year').value = currentDate.getFullYear();
+                document.getElementById('picker-month').value = currentDate.getMonth();
+            }
+            document.getElementById('date-picker-modal').classList.remove('hidden');
+        };
+
+        window.closeDatePickerModal = function() {
+            document.getElementById('date-picker-modal').classList.add('hidden');
+        };
+
+        window.applyDatePicker = function() {
+            const y = parseInt(document.getElementById('picker-year').value);
+            const m = parseInt(document.getElementById('picker-month').value);
+            if (calendar) {
+                const targetDate = new Date(y, m, 1);
+                calendar.gotoDate(targetDate);
+            }
+            closeDatePickerModal();
+        };
 
         window.handleExcelUpload = function(e) {
             const file = e.target.files[0];
@@ -551,7 +699,7 @@
                 });
 
                 if (processedCount > 0) {
-                    if (confirm(`엑셀 파일에서 총 ${processedCount}건의 일정을 파싱했습니다.\n기존 일정은 덮어쓰기 되며, 원치 않을 경우 관리자 메뉴의 [업로드 취소]로 되돌릴 수 있습니다[cite: 3]. 반영하시겠습니까?`)) {
+                    if (confirm(`엑셀 파일에서 총 ${processedCount}건의 일정을 날짜별 독립 일정으로 파싱했습니다.\n반영하시겠습니까?`)) {
                         lastBackupData = rawCalendarData ? JSON.parse(JSON.stringify(rawCalendarData)) : {};
                         document.getElementById('undo-btn').removeAttribute('disabled');
 
@@ -674,6 +822,31 @@
                 selectable: true,
                 editable: true,
                 
+                datesSet: function(info) {
+                    setTimeout(() => {
+                        const titleEl = document.querySelector('.fc-toolbar-title');
+                        if (titleEl && !titleEl.hasAttribute('data-click-bound')) {
+                            titleEl.setAttribute('data-click-bound', 'true');
+                            titleEl.title = "클릭하여 연도/월 선택 이동";
+                            titleEl.addEventListener('click', () => {
+                                openDatePickerModal();
+                            });
+                        }
+                    }, 50);
+                },
+
+                eventOrder: function(a, b) {
+                    const aIsLeave = isLeaveEvent(a.extendedProps.rawTitle || a.title);
+                    const bIsLeave = isLeaveEvent(b.extendedProps.rawTitle || b.title);
+
+                    if (aIsLeave && !bIsLeave) return 1;  
+                    if (!aIsLeave && bIsLeave) return -1; 
+
+                    const titleA = (a.extendedProps.rawTitle || a.title).toLowerCase();
+                    const titleB = (b.extendedProps.rawTitle || b.title).toLowerCase();
+                    return titleA.localeCompare(titleB, 'ko');
+                },
+
                 eventSources: [{
                     id: 'korea-holidays',
                     events: async function(info, successCallback, failureCallback) {
@@ -712,89 +885,50 @@
                     const evt = info.event;
                     if (evt.source && evt.source.id === 'korea-holidays') return;
 
-                    document.getElementById('modal-title').innerText = "일정 수정";
-                    document.getElementById('event-id').value = evt.id;
-                    document.getElementById('f-title').value = evt.extendedProps.rawTitle || evt.title;
+                    currentDetailEvent = evt;
+
+                    document.getElementById('d-title').innerText = evt.extendedProps.rawTitle || evt.title;
+                    document.getElementById('d-start').value = evt.startStr.split('T')[0];
                     
-                    const assignedEntity = evt.extendedProps.member || '강인현';
-                    const memberSelect = document.getElementById('f-member');
-                    
-                    if(!Array.from(memberSelect.options).some(opt => opt.value === assignedEntity)) {
-                        const tempOpt = document.createElement('option');
-                        tempOpt.value = assignedEntity;
-                        tempOpt.dataset.color = evt.backgroundColor;
-                        tempOpt.textContent = assignedEntity + " (삭제됨)";
-                        memberSelect.appendChild(tempOpt);
-                    }
-                    memberSelect.value = assignedEntity;
-                    
-                    document.getElementById('f-start').value = evt.startStr.split('T')[0];
-                    
+                    let calculatedEndStr = evt.startStr.split('T')[0];
                     if (evt.end) {
                         const endDate = new Date(evt.endStr);
                         endDate.setDate(endDate.getDate() - 1);
-                        const calculatedEndStr = endDate.toISOString().split('T')[0];
-                        const startStr = evt.startStr.split('T')[0];
-                        
-                        if (calculatedEndStr < startStr) {
-                            document.getElementById('f-end').value = startStr;
-                        } else {
-                            document.getElementById('f-end').value = calculatedEndStr;
+                        calculatedEndStr = endDate.toISOString().split('T')[0];
+                        if (calculatedEndStr < evt.startStr.split('T')[0]) {
+                            calculatedEndStr = evt.startStr.split('T')[0];
                         }
-                    } else {
-                        document.getElementById('f-end').value = evt.startStr.split('T')[0];
                     }
 
-                    onEntityChange();
+                    document.getElementById('d-start').innerText = evt.startStr.split('T')[0];
+                    document.getElementById('d-end').innerText = calculatedEndStr;
+                    document.getElementById('d-member').innerText = evt.extendedProps.member || '강인현';
 
-                    const subMembers = evt.extendedProps.subMembers || [];
-                    document.querySelectorAll('.sub-member-cb').forEach(cb => {
-                        cb.checked = subMembers.includes(cb.value);
-                    });
-                    
-                    document.getElementById('f-comment').value = evt.extendedProps.comment || '';
-                    const linkVal = evt.extendedProps.url || '';
-                    document.getElementById('f-url').value = linkVal;
-                    const linkBtn = document.getElementById('f-url-link');
-                    if(linkVal) {
-                        linkBtn.href = linkVal;
-                        linkBtn.classList.remove('hidden');
-                    } else {
-                        linkBtn.classList.add('hidden');
-                    }
-                    
-                    document.getElementById('modal-delete-btn').classList.remove('hidden');
-                    document.getElementById('event-modal').classList.remove('hidden');
-                },
-
-                eventMouseEnter: function(info) {
-                    if (info.event.source && info.event.source.id === 'korea-holidays') return;
-                    const props = info.event.extendedProps;
-                    let subListStr = '';
+                    const props = evt.extendedProps;
                     const isGroup = teamGroups.some(g => g.name === props.member);
+                    let subListStr = '';
                     if (isGroup) {
                         subListStr = props.subMembers && props.subMembers.length > 0 ? props.subMembers.join(', ') : '참여 인원 없음';
                     } else {
                         subListStr = props.member;
                     }
+                    document.getElementById('d-sub-members').innerText = subListStr;
 
-                    const commentStr = props.comment ? `<div class="mt-1"><span class="text-slate-300 font-bold">코멘트:</span> ${props.comment}</div>` : '';
-                    const urlStr = props.url ? `<div class="mt-0.5"><a href="${props.url}" target="_blank" onclick="event.stopPropagation();" class="text-blue-400 underline truncate block">🔗 문서 바로가기</a></div>` : '';
+                    const commentEl = document.getElementById('d-comment');
+                    commentEl.innerText = props.comment || '등록된 코멘트가 없습니다.';
 
-                    const content = `
-                        <div class="space-y-1">
-                            <div class="font-bold text-sm text-white border-b border-slate-700 pb-1">${props.rawTitle}</div>
-                            <div><span class="text-slate-400 font-semibold">담당 주체:</span> ${props.member}</div>
-                            <div><span class="text-slate-400 font-semibold">참여 인원:</span> ${subListStr}</div>
-                            ${commentStr}
-                            ${urlStr}
-                        </div>
-                    `;
+                    const urlContainer = document.getElementById('d-url-container');
+                    const urlLink = document.getElementById('d-url');
+                    const urlText = document.getElementById('d-url-text');
+                    if (props.url) {
+                        urlLink.href = props.url;
+                        urlText.innerText = props.url;
+                        urlContainer.classList.remove('hidden');
+                    } else {
+                        urlContainer.classList.add('hidden');
+                    }
 
-                    tippy(info.el, {
-                        content: content, allowHTML: true, theme: 'dark', animation: 'scale',
-                        placement: 'top', interactive: true, trigger: 'mouseenter focus', hideDelay: 200, appendTo: document.body
-                    });
+                    document.getElementById('detail-modal').classList.remove('hidden');
                 },
                 
                 eventDrop: function(info) { updateEventDates(info.event); },
@@ -815,7 +949,84 @@
             });
         });
 
-        // 🌟 활성 팀원 전체를 포함하는 'All' 그룹 자동 동기화 함수
+        window.switchToEditFromDetail = function() {
+            if (!currentDetailEvent) return;
+            closeDetailModal();
+
+            const evt = currentDetailEvent;
+            document.getElementById('modal-title').innerText = "일정 수정";
+            document.getElementById('event-id').value = evt.id;
+            document.getElementById('f-title').value = evt.extendedProps.rawTitle || evt.title;
+            
+            const assignedEntity = evt.extendedProps.member || '강인현';
+            const memberSelect = document.getElementById('f-member');
+            
+            if(!Array.from(memberSelect.options).some(opt => opt.value === assignedEntity)) {
+                const tempOpt = document.createElement('option');
+                tempOpt.value = assignedEntity;
+                tempOpt.dataset.color = evt.backgroundColor;
+                tempOpt.textContent = assignedEntity + " (삭제됨)";
+                memberSelect.appendChild(tempOpt);
+            }
+            memberSelect.value = assignedEntity;
+            
+            document.getElementById('f-start').value = evt.startStr.split('T')[0];
+            
+            if (evt.end) {
+                const endDate = new Date(evt.endStr);
+                endDate.setDate(endDate.getDate() - 1);
+                const calculatedEndStr = endDate.toISOString().split('T')[0];
+                const startStr = evt.startStr.split('T')[0];
+                
+                if (calculatedEndStr < startStr) {
+                    document.getElementById('f-end').value = startStr;
+                } else {
+                    document.getElementById('f-end').value = calculatedEndStr;
+                }
+            } else {
+                document.getElementById('f-end').value = evt.startStr.split('T')[0];
+            }
+
+            onEntityChange();
+
+            const subMembers = evt.extendedProps.subMembers || [];
+            document.querySelectorAll('.sub-member-cb').forEach(cb => {
+                cb.checked = subMembers.includes(cb.value);
+            });
+            
+            document.getElementById('f-comment').value = evt.extendedProps.comment || '';
+            const linkVal = evt.extendedProps.url || '';
+            document.getElementById('f-url').value = linkVal;
+            const linkBtn = document.getElementById('f-url-link');
+            if(linkVal) {
+                linkBtn.href = linkVal;
+                linkBtn.classList.remove('hidden');
+            } else {
+                linkBtn.classList.add('hidden');
+            }
+            
+            document.getElementById('modal-delete-btn').classList.remove('hidden');
+            document.getElementById('event-modal').classList.remove('hidden');
+        };
+
+        window.closeDetailModal = function() {
+            document.getElementById('detail-modal').classList.add('hidden');
+        };
+
+        window.handleDetailDelete = function() {
+            if (!currentDetailEvent) return;
+            const id = currentDetailEvent.id;
+            if (id && confirm('정말 이 일정을 삭제하시겠습니까?')) {
+                remove(ref(db, 's2_team_calendar/' + id));
+                if (rawCalendarData) delete rawCalendarData[id];
+                const eventToRemove = calendar.getEventById(id);
+                if (eventToRemove) {
+                    eventToRemove.remove();
+                }
+                closeDetailModal();
+            }
+        };
+
         function checkAndCreateAllGroup() {
             if (teamMembers.length === 0) return;
             const activeMemberNames = teamMembers.filter(m => !m.isResigned).map(m => m.name);
@@ -828,7 +1039,6 @@
                     members: activeMemberNames
                 });
             } else {
-                // 기존 'All' 그룹 멤버와 현재 활성 멤버 목록이 다를 경우 자동 업데이트
                 const currentMembersSet = new Set(allGroup.members || []);
                 const isDifferent = activeMemberNames.length !== currentMembersSet.size || activeMemberNames.some(name => !currentMembersSet.has(name));
                 
@@ -929,10 +1139,10 @@
             leaveContainer.innerHTML = '';
             const isLeaveChecked = showLeaveEvent;
             const leaveLbl = document.createElement('label');
-            leaveLbl.className = 'flex items-center space-x-2 cursor-pointer hover:bg-slate-100 p-1.5 rounded transition';
+            leaveLbl.className = 'flex items-center space-x-2 cursor-pointer hover:bg-slate-100 p-2 rounded transition';
             leaveLbl.innerHTML = `
-                <input type="checkbox" ${isLeaveChecked ? 'checked' : ''} onchange="handleLeaveFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300">
-                <span class="font-medium text-slate-700">휴가 일정 표시 (연차/반차)</span>
+                <input type="checkbox" ${isLeaveChecked ? 'checked' : ''} onchange="handleLeaveFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4">
+                <span class="font-medium text-slate-700 text-xs">휴가 일정 표시 (연차/반차)</span>
             `;
             leaveContainer.appendChild(leaveLbl);
             filterMemberCheckboxes();
@@ -950,15 +1160,15 @@
             const filteredEntities = allEntities.filter(name => name.toLowerCase().includes(keyword));
 
             if (filteredEntities.length === 0) {
-                memberContainer.innerHTML = '<div class="text-[11px] text-slate-400 py-2 text-center">검색 결과가 없습니다.</div>';
+                memberContainer.innerHTML = '<div class="text-xs text-slate-400 py-3 text-center">검색 결과가 없습니다.</div>';
             } else {
                 filteredEntities.forEach(name => {
                     const isChecked = selectedMembers.has(name);
                     const lbl = document.createElement('label');
-                    lbl.className = 'flex items-center space-x-2 cursor-pointer hover:bg-slate-100 p-1.5 rounded transition';
+                    lbl.className = 'flex items-center space-x-2 cursor-pointer hover:bg-slate-100 p-2 rounded transition';
                     lbl.innerHTML = `
-                        <input type="checkbox" value="${name}" ${isChecked ? 'checked' : ''} onchange="handleMemberFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300">
-                        <span class="font-medium text-slate-700">${name}</span>
+                        <input type="checkbox" value="${name}" ${isChecked ? 'checked' : ''} onchange="handleMemberFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4">
+                        <span class="font-medium text-slate-700 text-xs">${name}</span>
                     `;
                     memberContainer.appendChild(lbl);
                 });
@@ -1064,12 +1274,12 @@
             const secGrp = document.getElementById('sec-group');
             if (tab === 'member') {
                 secMem.classList.remove('hidden'); secGrp.classList.add('hidden');
-                btnMem.className = 'flex-1 pb-2 border-b-2 border-emerald-600 text-emerald-600 font-bold text-sm transition';
-                btnGrp.className = 'flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-semibold text-sm transition';
+                btnMem.className = 'flex-1 pb-2.5 border-b-2 border-emerald-600 text-emerald-600 font-bold text-sm transition';
+                btnGrp.className = 'flex-1 pb-2.5 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-semibold text-sm transition';
             } else {
                 secGrp.classList.remove('hidden'); secMem.classList.add('hidden');
-                btnGrp.className = 'flex-1 pb-2 border-b-2 border-emerald-600 text-emerald-600 font-bold text-sm transition';
-                btnMem.className = 'flex-1 pb-2 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-semibold text-sm transition';
+                btnGrp.className = 'flex-1 pb-2.5 border-b-2 border-emerald-600 text-emerald-600 font-bold text-sm transition';
+                btnMem.className = 'flex-1 pb-2.5 border-b-2 border-transparent text-slate-500 hover:text-slate-700 font-semibold text-sm transition';
             }
         };
 
@@ -1110,7 +1320,6 @@
                 const optGrp = document.createElement('optgroup');
                 optGrp.label = "📂 묶음 그룹";
                 
-                // 'All' 그룹이 맨 위에 오도록 정렬
                 const sortedGroups = [...teamGroups].sort((a, b) => {
                     if (a.name === 'All') return -1;
                     if (b.name === 'All') return 1;
@@ -1152,29 +1361,29 @@
             resignedCountSpan.innerText = resignedMembers.length;
 
             if (activeMembers.length === 0) {
-                container.innerHTML = `<p class="text-center text-xs text-slate-400 py-2">등록된 활성 팀원이 없습니다.</p>`;
+                container.innerHTML = `<p class="text-center text-xs text-slate-400 py-4">등록된 활성 팀원이 없습니다.</p>`;
             } else {
                 activeMembers.forEach(m => {
                     const memberGroups = teamGroups.filter(g => g.name !== 'All' && g.members && g.members.includes(m.name));
                     let groupBadges = '';
                     if (memberGroups.length > 0) {
-                        groupBadges = '<div class="flex flex-wrap gap-1 mt-1">';
+                        groupBadges = '<div class="flex flex-wrap gap-1 mt-1.5">';
                         memberGroups.forEach(g => {
-                            groupBadges += `<span class="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-medium border border-slate-200 bg-white text-slate-700"><span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${g.color};"></span><span>${g.name}</span></span>`;
+                            groupBadges += `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-xs font-medium border border-slate-200 bg-white text-slate-700"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${g.color};"></span><span>${g.name}</span></span>`;
                         });
                         groupBadges += '</div>';
                     }
 
                     const div = document.createElement('div');
-                    div.className = 'flex items-center justify-between bg-white p-2.5 rounded-lg border text-xs shadow-sm';
+                    div.className = 'flex items-center justify-between bg-white p-3.5 rounded-xl border text-sm shadow-sm';
                     div.innerHTML = `
                         <div class="flex flex-col flex-1 pr-2">
-                            <span class="font-semibold text-slate-800">${m.name}</span>
+                            <span class="font-bold text-slate-800 text-sm">${m.name}</span>
                             ${groupBadges}
                         </div>
-                        <div class="flex items-center space-x-1 shrink-0">
-                            <button onclick="editMember('${m.id}', '${m.name}', ${m.isResigned})" class="text-blue-500 hover:text-blue-700 p-1" title="수정"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="deleteMember('${m.id}')" class="text-rose-500 hover:text-rose-700 p-1" title="삭제"><i class="fa-solid fa-trash"></i></button>
+                        <div class="flex items-center space-x-2 shrink-0">
+                            <button onclick="editMember('${m.id}', '${m.name}', ${m.isResigned})" class="text-blue-500 hover:text-blue-700 p-1.5 text-sm" title="수정"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteMember('${m.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 text-sm" title="삭제"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     `;
                     container.appendChild(div);
@@ -1182,19 +1391,19 @@
             }
 
             if (resignedMembers.length === 0) {
-                resignedContainer.innerHTML = `<p class="text-center text-[11px] text-slate-400 py-2">퇴사한 팀원이 없습니다.</p>`;
+                resignedContainer.innerHTML = `<p class="text-center text-xs text-slate-400 py-3">퇴사한 팀원이 없습니다.</p>`;
             } else {
                 resignedMembers.forEach(m => {
                     const div = document.createElement('div');
-                    div.className = 'flex items-center justify-between bg-white p-2 rounded-lg border border-slate-200 text-xs shadow-sm opacity-75';
+                    div.className = 'flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 text-sm shadow-sm opacity-75';
                     div.innerHTML = `
-                        <div class="flex items-center space-x-2">
-                            <span class="font-medium text-slate-500 line-through">${m.name}</span>
-                            <span class="bg-rose-100 text-rose-600 px-1.5 py-0.5 rounded text-[10px] font-semibold">퇴사</span>
+                        <div class="flex items-center space-x-2.5">
+                            <span class="font-medium text-slate-500 line-through text-sm">${m.name}</span>
+                            <span class="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-xs font-semibold">퇴사</span>
                         </div>
-                        <div class="flex items-center space-x-1 shrink-0">
-                            <button onclick="editMember('${m.id}', '${m.name}', ${m.isResigned})" class="text-blue-500 hover:text-blue-700 p-1" title="수정"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="deleteMember('${m.id}')" class="text-rose-500 hover:text-rose-700 p-1" title="삭제"><i class="fa-solid fa-trash"></i></button>
+                        <div class="flex items-center space-x-2 shrink-0">
+                            <button onclick="editMember('${m.id}', '${m.name}', ${m.isResigned})" class="text-blue-500 hover:text-blue-700 p-1.5 text-sm" title="수정"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteMember('${m.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 text-sm" title="삭제"><i class="fa-solid fa-trash"></i></button>
                         </div>
                     `;
                     resignedContainer.appendChild(div);
@@ -1249,27 +1458,27 @@
 
             displayGroups.forEach(g => {
                 const div = document.createElement('div');
-                div.className = 'flex items-center justify-between bg-white p-2.5 rounded-lg border text-xs shadow-sm';
-                let memberBadges = '<span class="text-[10px] text-slate-400">인원 없음</span>';
+                div.className = 'flex items-center justify-between bg-white p-3.5 rounded-xl border text-sm shadow-sm';
+                let memberBadges = '<span class="text-xs text-slate-400">인원 없음</span>';
                 if (g.members && g.members.length > 0) {
                     const sortedGroupMembers = [...g.members].sort((a, b) => a.localeCompare(b, 'ko'));
-                    memberBadges = '<div class="flex flex-wrap gap-1 mt-1">';
+                    memberBadges = '<div class="flex flex-wrap gap-1.5 mt-1.5">';
                     sortedGroupMembers.forEach(mName => {
-                        memberBadges += `<span class="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px] font-medium border border-slate-200">${mName}</span>`;
+                        memberBadges += `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">${mName}</span>`;
                     });
                     memberBadges += '</div>';
                 }
                 div.innerHTML = `
-                    <div class="flex items-start space-x-2 flex-1 pr-2">
-                        <span class="w-3 h-3 rounded-full shrink-0 mt-0.5" style="background-color: ${g.color};"></span>
+                    <div class="flex items-start space-x-3 flex-1 pr-2">
+                        <span class="w-3.5 h-3.5 rounded-full shrink-0 mt-1" style="background-color: ${g.color};"></span>
                         <div class="flex flex-col flex-1">
-                            <span class="font-bold text-slate-800">${g.name}</span>
+                            <span class="font-bold text-slate-800 text-sm">${g.name}</span>
                             ${memberBadges}
                         </div>
                     </div>
-                    <div class="flex items-center space-x-1 shrink-0">
-                        <button onclick="editGroup('${g.id}', '${g.name}', '${g.color}')" class="text-blue-500 hover:text-blue-700 p-1"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deleteGroup('${g.id}')" class="text-rose-500 hover:text-rose-700 p-1"><i class="fa-solid fa-trash"></i></button>
+                    <div class="flex items-center space-x-2 shrink-0">
+                        <button onclick="editGroup('${g.id}', '${g.name}', '${g.color}')" class="text-blue-500 hover:text-blue-700 p-1.5 text-sm"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteGroup('${g.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 text-sm"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 `;
                 container.appendChild(div);
@@ -1284,8 +1493,8 @@
 
             activeMembers.forEach(m => {
                 const lbl = document.createElement('label');
-                lbl.className = 'flex items-center space-x-1 bg-white px-2 py-1 rounded border border-slate-200 text-xs cursor-pointer hover:bg-slate-50 transition';
-                lbl.innerHTML = `<input type="checkbox" value="${m.name}" class="group-member-cb rounded text-emerald-600 focus:ring-emerald-500"><span class="font-medium">${m.name}</span>`;
+                lbl.className = 'flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs cursor-pointer hover:bg-slate-100 transition';
+                lbl.innerHTML = `<input type="checkbox" value="${m.name}" class="group-member-cb rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5"><span class="font-medium text-slate-700">${m.name}</span>`;
                 container.appendChild(lbl);
             });
         }
