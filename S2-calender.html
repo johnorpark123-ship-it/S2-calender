@@ -867,13 +867,34 @@
                     }, 50);
                 },
 
+                // 🌟 일정 노출 순서 변경: [공휴일(최상단)] -> [그룹] -> [개인] -> [연차(최하단)]
                 eventOrder: function(a, b) {
-                    const aIsLeave = isLeaveEvent(a.extendedProps.rawTitle || a.title);
-                    const bIsLeave = isLeaveEvent(b.extendedProps.rawTitle || b.title);
+                    const getScore = (evt) => {
+                        // 공휴일은 가장 위에 오도록 점수 0 부여
+                        if (evt.source && evt.source.id === 'korea-holidays') return 0;
+                        
+                        const title = evt.extendedProps.rawTitle || evt.title;
+                        const member = evt.extendedProps.member;
+                        
+                        // 1. 연차/반차 등 휴가 일정은 제일 아래 (점수 3)
+                        if (isLeaveEvent(title)) return 3; 
+                        
+                        // 2. 그룹(담당 주체가 등록된 그룹과 일치할 때)은 우선순위 높음 (점수 1)
+                        if (teamGroups.some(g => g.name === member)) return 1; 
+                        
+                        // 3. 위 두 조건에 해당하지 않는 개인 일정은 중간 (점수 2)
+                        return 2; 
+                    };
 
-                    if (aIsLeave && !bIsLeave) return 1;  
-                    if (!aIsLeave && bIsLeave) return -1; 
+                    const scoreA = getScore(a);
+                    const scoreB = getScore(b);
 
+                    // 우선순위가 다르면 점수 순(오름차순)으로 정렬
+                    if (scoreA !== scoreB) {
+                        return scoreA - scoreB;
+                    }
+
+                    // 카테고리가 같을 경우 기존처럼 가나다순 정렬 유지
                     const titleA = (a.extendedProps.rawTitle || a.title).toLowerCase();
                     const titleB = (b.extendedProps.rawTitle || b.title).toLowerCase();
                     return titleA.localeCompare(titleB, 'ko');
@@ -947,7 +968,7 @@
                     document.getElementById('d-sub-members').innerText = subListStr;
 
                     const commentEl = document.getElementById('d-comment');
-                    commentEl.innerText = props.comment || '등록된 코멘트가চ্ছু등록된 코멘트가 없습니다.';
+                    commentEl.innerText = props.comment || '등록된 코멘트가 없습니다.';
 
                     const urlContainer = document.getElementById('d-url-container');
                     const urlLink = document.getElementById('d-url');
