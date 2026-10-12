@@ -74,7 +74,6 @@
             </div>
             
             <div class="flex items-center space-x-3">
-                <!-- 상시 표시되는 실시간 시간 영역 -->
                 <div id="live-clock-container" class="flex items-center space-x-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 shadow-inner" title="구글 서버 시간 기준 실시간 시계">
                     <i class="fa-regular fa-clock text-emerald-600"></i>
                     <span id="live-clock-text">--:--:--</span>
@@ -104,7 +103,7 @@
                         <span class="hidden sm:inline">온보딩 포털</span>
                     </a>
 
-                    <!-- 필터 드롭다운 크기 확장 (w-96) -->
+                    <!-- 필터 드롭다운 -->
                     <div class="relative" id="filter-container">
                         <button onclick="toggleFilterDropdown(event)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 transition flex items-center space-x-1.5">
                             <i class="fa-solid fa-filter text-emerald-600"></i>
@@ -451,9 +450,8 @@
         let currentDetailEvent = null;
         
         let liveClockInterval = null;
-        let serverTimeOffset = 0; // 서버-로컬 시간 차이를 저장할 변수
+        let serverTimeOffset = 0;
 
-        // Firebase 서버 시간 오프셋 수신
         const offsetRef = ref(db, '.info/serverTimeOffset');
         onValue(offsetRef, (snap) => {
             serverTimeOffset = snap.val() || 0;
@@ -465,19 +463,16 @@
                     hiddenClickCount = 0;
                 }, 3000);
             }
-
             hiddenClickCount++;
-
             if (hiddenClickCount >= 10) {
                 clearTimeout(hiddenTimer);
                 hiddenClickCount = 0;
                 const adminDiv = document.getElementById('hidden-admin-buttons');
                 const isHidden = adminDiv.classList.contains('hidden');
-                
                 if (isHidden) {
                     adminDiv.classList.remove('hidden');
                     adminDiv.classList.add('flex');
-                    alert('🎉 히든 관리자 메뉴(엑셀 업로드 / 업로드 취소 / 초기화)가 활성화되었습니다!');
+                    alert('🎉 히든 관리자 메뉴가 활성화되었습니다!');
                 } else {
                     adminDiv.classList.remove('flex');
                     adminDiv.classList.add('hidden');
@@ -486,13 +481,10 @@
             }
         };
 
-        // 🌟 실시간 시계 작동 함수 (구글 파이어베이스 서버 시간 기반)
         function startLiveClock() {
             const updateClock = () => {
-                // 현재 로컬 시간에 오프셋을 더하여 구글 서버 시간을 계산
                 const estimatedServerTimeMs = Date.now() + serverTimeOffset;
                 const now = new Date(estimatedServerTimeMs);
-
                 const year = now.getFullYear();
                 const month = String(now.getMonth() + 1).padStart(2, '0');
                 const day = String(now.getDate()).padStart(2, '0');
@@ -514,12 +506,9 @@
         }
 
         const defaultMembers = [
-            { name: '강인현', isResigned: false },
-            { name: '해진', isResigned: false },
-            { name: '조성진', isResigned: false },
-            { name: 'Ami Vyas', isResigned: false },
-            { name: '딥샤', isResigned: false },
-            { name: '기타', isResigned: false }
+            { name: '강인현', isResigned: false }, { name: '해진', isResigned: false },
+            { name: '조성진', isResigned: false }, { name: 'Ami Vyas', isResigned: false },
+            { name: '딥샤', isResigned: false }, { name: '기타', isResigned: false }
         ];
 
         function isLeaveEvent(title) {
@@ -567,7 +556,6 @@
         window.handleExcelUpload = function(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(event) {
                 const data = new Uint8Array(event.target.result);
@@ -576,11 +564,8 @@
                 const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
 
                 const partColorMap = {
-                    'All': '#10b981',
-                    'Cloud Potal': '#2563eb',
-                    'OnCloud': '#059669',
-                    'Health Pro': '#7c3aed',
-                    'OnCAFE': '#ea580c'
+                    'All(전체 인원)': '#10b981', 'Cloud Potal': '#2563eb', 'OnCloud': '#059669',
+                    'Health Pro': '#7c3aed', 'OnCAFE': '#ea580c'
                 };
 
                 const headers = rows[0]; 
@@ -658,21 +643,14 @@
 
                             if (dateStr) {
                                 const title = String(val).trim();
-                                
                                 let dObj = new Date(dateStr);
                                 dObj.setDate(dObj.getDate() + 1);
                                 let endDateStr = dObj.toISOString().split('T')[0];
 
                                 if (isLeaveEvent(title)) {
                                     individualEvents.push({
-                                        member: name,
-                                        title: title,
-                                        start: dateStr,
-                                        end: endDateStr,
-                                        color: '#475569',
-                                        comment: '엑셀 휴가 등록',
-                                        url: '',
-                                        subMembers: []
+                                        member: name, title: title, start: dateStr, end: endDateStr,
+                                        color: '#475569', comment: '엑셀 휴가 등록', url: '', subMembers: []
                                     });
                                 } else {
                                     const key = `${dateStr}_${title}_${part}`; 
@@ -694,32 +672,24 @@
 
                 Object.values(groupedEvents).forEach(evt => {
                     const membersArr = Array.from(evt.members);
-                    let assignMember = membersArr[0];
+                    let assignMember = evt.part === 'All' ? 'All(전체 인원)' : evt.part;
                     let subMembers = [];
                     let commentTxt = "엑셀 자동 등록";
                     
                     if (membersArr.length > 1) {
-                        assignMember = evt.part; 
+                        assignMember = evt.part === 'All' ? 'All(전체 인원)' : evt.part; 
                         subMembers = membersArr; 
                         commentTxt = `👥 엑셀 파싱: 총 ${membersArr.length}명 공통 일정`;
                     }
 
                     const sig = `${evt.start}_${assignMember}_${evt.title}`.trim();
                     const eventData = {
-                        member: assignMember,
-                        title: evt.title,
-                        start: evt.start,
-                        end: evt.end,
-                        color: evt.color,
-                        comment: commentTxt,
-                        url: "",
-                        subMembers: subMembers
+                        member: assignMember, title: evt.title, start: evt.start, end: evt.end,
+                        color: evt.color, comment: commentTxt, url: "", subMembers: subMembers
                     };
 
                     let targetKey = existingEventMap.get(sig);
-                    if (!targetKey) {
-                        targetKey = push(calendarRef).key;
-                    }
+                    if (!targetKey) targetKey = push(calendarRef).key;
                     updates['s2_team_calendar/' + targetKey] = eventData;
                     processedCount++;
                 });
@@ -727,18 +697,15 @@
                 individualEvents.forEach(evt => {
                     const sig = `${evt.start}_${evt.member}_${evt.title}`.trim();
                     let targetKey = existingEventMap.get(sig);
-                    if (!targetKey) {
-                        targetKey = push(calendarRef).key;
-                    }
+                    if (!targetKey) targetKey = push(calendarRef).key;
                     updates['s2_team_calendar/' + targetKey] = evt;
                     processedCount++;
                 });
 
                 if (processedCount > 0) {
-                    if (confirm(`엑셀 파일에서 총 ${processedCount}건의 일정을 날짜별 독립 일정으로 파싱했습니다.\n반영하시겠습니까?`)) {
+                    if (confirm(`엑셀 파일에서 총 ${processedCount}건의 일정을 독립 일정으로 파싱했습니다.\n반영하시겠습니까?`)) {
                         lastBackupData = rawCalendarData ? JSON.parse(JSON.stringify(rawCalendarData)) : {};
                         document.getElementById('undo-btn').removeAttribute('disabled');
-
                         update(ref(db), updates).then(() => {
                             alert(`일정이 성공적으로 반영되었습니다!`);
                             e.target.value = '';
@@ -755,29 +722,23 @@
         };
 
         window.undoExcelUpload = function() {
-            if (!lastBackupData) {
-                return alert('되돌릴 수 있는 직전 업로드 기록이 없습니다.');
-            }
-            if (confirm('가장 최근에 엑셀을 업로드하기 전 상태로 캘린더를 되돌리시겠습니까?')) {
+            if (!lastBackupData) return alert('되돌릴 수 있는 기록이 없습니다.');
+            if (confirm('가장 최근 업로드 전 상태로 되돌리시겠습니까?')) {
                 set(calendarRef, lastBackupData).then(() => {
-                    alert('성공적으로 직전 상태로 복원되었습니다.');
+                    alert('복원되었습니다.');
                     lastBackupData = null;
                     document.getElementById('undo-btn').setAttribute('disabled', 'true');
-                }).catch(err => {
-                    alert('되돌리기 중 오류 발생: ' + err.message);
-                });
+                }).catch(err => alert('오류 발생: ' + err.message));
             }
         };
 
         window.resetCalendarData = function() {
-            if (confirm('정말로 모든 일정을 초기화하시겠습니까?\n(등록된 모든 커스텀 일정이 삭제되고 공휴일만 남게 됩니다.)')) {
+            if (confirm('정말로 모든 일정을 초기화하시겠습니까?')) {
                 set(calendarRef, null).then(() => {
                     lastBackupData = null;
                     document.getElementById('undo-btn').setAttribute('disabled', 'true');
-                    alert('캘린더가 초기화되었습니다.');
-                }).catch(err => {
-                    alert('초기화 중 오류 발생: ' + err.message);
-                });
+                    alert('초기화되었습니다.');
+                }).catch(err => alert('오류 발생: ' + err.message));
             }
         };
 
@@ -791,8 +752,7 @@
 
         window.toggleFilterDropdown = function(event) {
             if (event) event.stopPropagation();
-            const dropdown = document.getElementById('filter-dropdown');
-            dropdown.classList.toggle('hidden');
+            document.getElementById('filter-dropdown').classList.toggle('hidden');
         };
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -801,29 +761,24 @@
             onValue(groupsRef, (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
-                    teamGroups = Object.keys(data).map(key => ({
-                        id: key,
-                        name: data[key].name,
-                        color: data[key].color,
-                        members: data[key].members || []
-                    }));
+                    teamGroups = Object.keys(data).map(key => {
+                        let gName = data[key].name;
+                        // 기존에 'All'로 저장되어 있던 그룹명도 자동으로 'All(전체 인원)'으로 통일
+                        if (gName === 'All') gName = 'All(전체 인원)';
+                        return {
+                            id: key, name: gName, color: data[key].color, members: data[key].members || []
+                        };
+                    });
                 } else teamGroups = [];
-                
                 checkAndCreateAllGroup();
-
-                renderMemberSelect();
-                renderMemberList();
-                renderGroupList();
-                renderFilterCheckboxes();
+                renderMemberSelect(); renderMemberList(); renderGroupList(); renderFilterCheckboxes();
             });
 
             onValue(membersRef, (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
                     teamMembers = Object.keys(data).map(key => ({
-                        id: key,
-                        name: data[key].name,
-                        isResigned: data[key].isResigned || false
+                        id: key, name: data[key].name, isResigned: data[key].isResigned || false
                     }));
                 } else {
                     const updates = {};
@@ -831,15 +786,9 @@
                     update(membersRef, updates);
                     return; 
                 }
-                
                 teamMembers.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
-
                 checkAndCreateAllGroup();
-
-                renderMemberSelect();
-                renderMemberList();
-                renderGroupMemberCheckboxes(); 
-                renderFilterCheckboxes();
+                renderMemberSelect(); renderMemberList(); renderGroupMemberCheckboxes(); renderFilterCheckboxes();
             });
 
             const calendarEl = document.getElementById('calendar');
@@ -847,15 +796,30 @@
                 initialView: 'dayGridMonth',
                 locale: 'ko',
                 
+                customButtons: {
+                    myToday: {
+                        text: '오늘',
+                        click: function() {
+                            calendar.today();
+                            setTimeout(() => {
+                                const todayEl = document.querySelector('.fc-day-today');
+                                if (todayEl) {
+                                    todayEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                }
+                            }, 100);
+                        }
+                    }
+                },
+                
                 displayEventTime: false,
                 allDayText: '', 
                 
                 headerToolbar: {
-                    left: 'prev,next today',
+                    left: 'prev,next myToday',
                     center: 'title',
                     right: 'dayGridMonth,dayGridWeek,listMonth'
                 },
-                buttonText: { today: '오늘', month: '월', week: '주', list: '목록' },
+                buttonText: { month: '월', week: '주', list: '목록' },
                 height: '100%',
                 selectable: true,
                 editable: true,
@@ -882,14 +846,10 @@
                         if (teamGroups.some(g => g.name === member)) return 1; 
                         return 2; 
                     };
-
                     const scoreA = getScore(a);
                     const scoreB = getScore(b);
-
-                    if (scoreA !== scoreB) {
-                        return scoreA - scoreB;
-                    }
-
+                    if (scoreA !== scoreB) return scoreA - scoreB;
+                    
                     const titleA = (a.extendedProps.rawTitle || a.title).toLowerCase();
                     const titleB = (b.extendedProps.rawTitle || b.title).toLowerCase();
                     return titleA.localeCompare(titleB, 'ko');
@@ -934,7 +894,6 @@
                     if (evt.source && evt.source.id === 'korea-holidays') return;
 
                     currentDetailEvent = evt;
-
                     document.getElementById('d-title').innerText = evt.extendedProps.rawTitle || evt.title;
                     document.getElementById('d-start').value = evt.startStr.split('T')[0];
                     
@@ -961,21 +920,17 @@
                         subListStr = props.member;
                     }
                     document.getElementById('d-sub-members').innerText = subListStr;
-
-                    const commentEl = document.getElementById('d-comment');
-                    commentEl.innerText = props.comment || '등록된 코멘트가 없습니다.';
+                    document.getElementById('d-comment').innerText = props.comment || '등록된 코멘트가 없습니다.';
 
                     const urlContainer = document.getElementById('d-url-container');
                     const urlLink = document.getElementById('d-url');
                     const urlText = document.getElementById('d-url-text');
                     if (props.url) {
-                        urlLink.href = props.url;
-                        urlText.innerText = props.url;
+                        urlLink.href = props.url; urlText.innerText = props.url;
                         urlContainer.classList.remove('hidden');
                     } else {
                         urlContainer.classList.add('hidden');
                     }
-
                     document.getElementById('detail-modal').classList.remove('hidden');
                 },
                 
@@ -1032,12 +987,7 @@
                 endDate.setDate(endDate.getDate() - 1);
                 const calculatedEndStr = endDate.toISOString().split('T')[0];
                 const startStr = evt.startStr.split('T')[0];
-                
-                if (calculatedEndStr < startStr) {
-                    document.getElementById('f-end').value = startStr;
-                } else {
-                    document.getElementById('f-end').value = calculatedEndStr;
-                }
+                document.getElementById('f-end').value = (calculatedEndStr < startStr) ? startStr : calculatedEndStr;
             } else {
                 document.getElementById('f-end').value = evt.startStr.split('T')[0];
             }
@@ -1054,8 +1004,7 @@
             document.getElementById('f-url').value = linkVal;
             const linkBtn = document.getElementById('f-url-link');
             if(linkVal) {
-                linkBtn.href = linkVal;
-                linkBtn.classList.remove('hidden');
+                linkBtn.href = linkVal; linkBtn.classList.remove('hidden');
             } else {
                 linkBtn.classList.add('hidden');
             }
@@ -1064,9 +1013,7 @@
             document.getElementById('event-modal').classList.remove('hidden');
         };
 
-        window.closeDetailModal = function() {
-            document.getElementById('detail-modal').classList.add('hidden');
-        };
+        window.closeDetailModal = function() { document.getElementById('detail-modal').classList.add('hidden'); };
 
         window.handleDetailDelete = function() {
             if (!currentDetailEvent) return;
@@ -1074,10 +1021,7 @@
             if (id && confirm('정말 이 일정을 삭제하시겠습니까?')) {
                 remove(ref(db, 's2_team_calendar/' + id));
                 if (rawCalendarData) delete rawCalendarData[id];
-                const eventToRemove = calendar.getEventById(id);
-                if (eventToRemove) {
-                    eventToRemove.remove();
-                }
+                const eventToRemove = calendar.getEventById(id); if (eventToRemove) eventToRemove.remove();
                 closeDetailModal();
             }
         };
@@ -1085,23 +1029,15 @@
         function checkAndCreateAllGroup() {
             if (teamMembers.length === 0) return;
             const activeMemberNames = teamMembers.filter(m => !m.isResigned).map(m => m.name);
-            const allGroup = teamGroups.find(g => g.name === 'All');
+            const allGroup = teamGroups.find(g => g.name === 'All(전체 인원)' || g.name === 'All');
 
             if (!allGroup) {
-                push(groupsRef, {
-                    name: 'All',
-                    color: '#10b981',
-                    members: activeMemberNames
-                });
+                push(groupsRef, { name: 'All(전체 인원)', color: '#10b981', members: activeMemberNames });
             } else {
                 const currentMembersSet = new Set(allGroup.members || []);
                 const isDifferent = activeMemberNames.length !== currentMembersSet.size || activeMemberNames.some(name => !currentMembersSet.has(name));
                 
-                if (isDifferent) {
-                    update(ref(db, 's2_team_groups/' + allGroup.id), {
-                        members: activeMemberNames
-                    });
-                }
+                if (isDifferent) update(ref(db, 's2_team_groups/' + allGroup.id), { members: activeMemberNames });
             }
         }
 
@@ -1139,7 +1075,6 @@
             }
 
             const matchedGroup = teamGroups.find(g => g.name === selectedVal);
-            
             if (matchedGroup && matchedGroup.members && matchedGroup.members.length > 0) {
                 subSection.classList.remove('hidden');
 
@@ -1151,15 +1086,12 @@
                 if (rawCalendarData && startStr && endStr) {
                     const sDate = new Date(startStr);
                     const eDate = new Date(endStr);
-
                     Object.keys(rawCalendarData).forEach(key => {
                         if (key === currentEditingId) return;
                         const evt = rawCalendarData[key];
                         const evStart = new Date(evt.start);
                         const evEnd = new Date(evt.end ? evt.end : evt.start);
-
-                        const isOverlap = sDate <= evEnd && eDate >= evStart;
-                        if (isOverlap) {
+                        if (sDate <= evEnd && eDate >= evStart) {
                             if (teamMembers.some(m => m.name === evt.member)) membersWithConflict.add(evt.member);
                             if (evt.subMembers && Array.isArray(evt.subMembers)) {
                                 evt.subMembers.forEach(sm => membersWithConflict.add(sm));
@@ -1171,13 +1103,9 @@
                 matchedGroup.members.forEach(mName => {
                     const hasConflict = membersWithConflict.has(mName);
                     const isChecked = !hasConflict; 
-
                     const lbl = document.createElement('label');
                     lbl.className = `flex items-center space-x-1 px-2 py-1 rounded border text-xs cursor-pointer transition ${hasConflict ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700'}`;
-                    lbl.innerHTML = `
-                        <input type="checkbox" value="${mName}" ${isChecked ? 'checked' : ''} class="sub-member-cb rounded text-emerald-600 focus:ring-emerald-500">
-                        <span class="font-medium">${mName} ${hasConflict ? '(타 일정 있음)' : ''}</span>
-                    `;
+                    lbl.innerHTML = `<input type="checkbox" value="${mName}" ${isChecked ? 'checked' : ''} class="sub-member-cb rounded text-emerald-600 focus:ring-emerald-500"><span class="font-medium">${mName} ${hasConflict ? '(타 일정 있음)' : ''}</span>`;
                     container.appendChild(lbl);
                 });
             } else {
@@ -1195,10 +1123,7 @@
             const isLeaveChecked = showLeaveEvent;
             const leaveLbl = document.createElement('label');
             leaveLbl.className = 'flex items-center space-x-2 cursor-pointer hover:bg-slate-100 p-2 rounded transition';
-            leaveLbl.innerHTML = `
-                <input type="checkbox" ${isLeaveChecked ? 'checked' : ''} onchange="handleLeaveFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4">
-                <span class="font-medium text-slate-700 text-xs">휴가 일정 표시 (연차/반차)</span>
-            `;
+            leaveLbl.innerHTML = `<input type="checkbox" ${isLeaveChecked ? 'checked' : ''} onchange="handleLeaveFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4"><span class="font-medium text-slate-700 text-xs">휴가 일정 표시 (연차/반차)</span>`;
             leaveContainer.appendChild(leaveLbl);
             filterMemberCheckboxes();
         }
@@ -1207,9 +1132,7 @@
             const memberContainer = document.getElementById('filter-member-checkboxes');
             const searchInput = document.getElementById('filter-search-input');
             const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
-            
             memberContainer.innerHTML = '';
-
             const activeMembers = teamMembers.filter(m => !m.isResigned);
             const allEntities = [...teamGroups.map(g=>g.name), ...activeMembers.map(m=>m.name)];
             const filteredEntities = allEntities.filter(name => name.toLowerCase().includes(keyword));
@@ -1221,10 +1144,7 @@
                     const isChecked = selectedMembers.has(name);
                     const lbl = document.createElement('label');
                     lbl.className = 'flex items-center space-x-2 cursor-pointer hover:bg-slate-100 p-2 rounded transition';
-                    lbl.innerHTML = `
-                        <input type="checkbox" value="${name}" ${isChecked ? 'checked' : ''} onchange="handleMemberFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4">
-                        <span class="font-medium text-slate-700 text-xs">${name}</span>
-                    `;
+                    lbl.innerHTML = `<input type="checkbox" value="${name}" ${isChecked ? 'checked' : ''} onchange="handleMemberFilterChange(this)" class="rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4"><span class="font-medium text-slate-700 text-xs">${name}</span>`;
                     memberContainer.appendChild(lbl);
                 });
             }
@@ -1237,20 +1157,14 @@
             renderCalendarData();
         };
 
-        window.handleLeaveFilterChange = function(cb) {
-            showLeaveEvent = cb.checked;
-            renderCalendarData();
-        };
+        window.handleLeaveFilterChange = function(cb) { showLeaveEvent = cb.checked; renderCalendarData(); };
 
         window.selectAllFilters = function(type, check) {
             if (type === 'member') {
                 const activeMembers = teamMembers.filter(m => !m.isResigned);
                 const allEntities = [...teamGroups.map(g=>g.name), ...activeMembers.map(m=>m.name)];
-                if(check) {
-                    allEntities.forEach(e => selectedMembers.add(e));
-                } else {
-                    selectedMembers.clear();
-                }
+                if(check) allEntities.forEach(e => selectedMembers.add(e));
+                else selectedMembers.clear();
             } else {
                 showLeaveEvent = check;
             }
@@ -1269,11 +1183,7 @@
                 const eventsArray = Object.keys(rawCalendarData).reduce((arr, key) => {
                     const item = rawCalendarData[key];
                     const isLeave = isLeaveEvent(item.title);
-
-                    if (!anyFilterActive) {
-                        arr.push(createCalendarEventObject(key, item));
-                        return arr;
-                    }
+                    if (!anyFilterActive) { arr.push(createCalendarEventObject(key, item)); return arr; }
 
                     let match = false;
                     if (isLeave && showLeaveEvent) match = true;
@@ -1283,7 +1193,6 @@
                             if (item.subMembers.some(sm => selectedMembers.has(sm))) match = true;
                         }
                     }
-
                     if (match) arr.push(createCalendarEventObject(key, item));
                     return arr;
                 }, []);
@@ -1299,9 +1208,7 @@
                 eventColor = '#475569';
             } else {
                 const matchedGroup = teamGroups.find(g => g.name === item.member);
-                if (matchedGroup) {
-                    eventColor = matchedGroup.color;
-                }
+                if (matchedGroup) eventColor = matchedGroup.color;
             }
 
             let validEnd = item.end;
@@ -1312,8 +1219,7 @@
             }
 
             return {
-                id: key, title: `[${item.member}] ${item.title}`, start: item.start, end: validEnd,
-                allDay: true,
+                id: key, title: `[${item.member}] ${item.title}`, start: item.start, end: validEnd, allDay: true,
                 backgroundColor: eventColor, borderColor: eventColor,
                 extendedProps: {
                     member: item.member, rawTitle: item.title, comment: item.comment || '',
@@ -1340,24 +1246,18 @@
 
         window.selectColor = function(color, btnElem, type) {
             selectedGroupColor = color;
-            document.querySelectorAll(`#group-color-palette .color-btn`).forEach(b => {
-                b.classList.remove('ring-2', 'ring-offset-2', 'ring-slate-400');
-            });
+            document.querySelectorAll(`#group-color-palette .color-btn`).forEach(b => b.classList.remove('ring-2', 'ring-offset-2', 'ring-slate-400'));
             if(btnElem) btnElem.classList.add('ring-2', 'ring-offset-2', 'ring-slate-400');
         };
 
-        window.openMemberModal = function() {
-            cancelEditMember(); cancelEditGroup();
-            document.getElementById('member-modal').classList.remove('hidden');
-        };
+        window.openMemberModal = function() { cancelEditMember(); cancelEditGroup(); document.getElementById('member-modal').classList.remove('hidden'); };
         window.closeMemberModal = function() { document.getElementById('member-modal').classList.add('hidden'); };
 
         window.toggleResignedSection = function() {
             const list = document.getElementById('resigned-list-container');
             const arrow = document.getElementById('resigned-arrow');
             list.classList.toggle('hidden');
-            arrow.classList.toggle('fa-chevron-down');
-            arrow.classList.toggle('fa-chevron-up');
+            arrow.classList.toggle('fa-chevron-down'); arrow.classList.toggle('fa-chevron-up');
         };
 
         function renderMemberSelect() {
@@ -1365,22 +1265,17 @@
             select.innerHTML = '';
             
             const defaultOpt = document.createElement('option');
-            defaultOpt.value = "";
-            defaultOpt.disabled = true;
-            defaultOpt.selected = true;
-            defaultOpt.textContent = "담당 주체를 선택하세요";
+            defaultOpt.value = ""; defaultOpt.disabled = true; defaultOpt.selected = true; defaultOpt.textContent = "담당 주체를 선택하세요";
             select.appendChild(defaultOpt);
 
             if (teamGroups.length > 0) {
                 const optGrp = document.createElement('optgroup');
                 optGrp.label = "📂 묶음 그룹";
-                
                 const sortedGroups = [...teamGroups].sort((a, b) => {
-                    if (a.name === 'All') return -1;
-                    if (b.name === 'All') return 1;
+                    if (a.name === 'All(전체 인원)' || a.name === 'All') return -1; 
+                    if (b.name === 'All(전체 인원)' || b.name === 'All') return 1;
                     return a.name.localeCompare(b.name, 'ko');
                 });
-
                 sortedGroups.forEach(g => {
                     const opt = document.createElement('option');
                     opt.value = g.name; opt.dataset.color = g.color; opt.textContent = g.name;
@@ -1409,38 +1304,24 @@
             const resignedCountSpan = document.getElementById('resigned-count');
             
             container.innerHTML = ''; resignedContainer.innerHTML = '';
-
             const activeMembers = teamMembers.filter(m => !m.isResigned);
             const resignedMembers = teamMembers.filter(m => m.isResigned);
-
             resignedCountSpan.innerText = resignedMembers.length;
 
             if (activeMembers.length === 0) {
                 container.innerHTML = `<p class="text-center text-xs text-slate-400 py-4">등록된 활성 팀원이 없습니다.</p>`;
             } else {
                 activeMembers.forEach(m => {
-                    const memberGroups = teamGroups.filter(g => g.name !== 'All' && g.members && g.members.includes(m.name));
+                    const memberGroups = teamGroups.filter(g => g.name !== 'All(전체 인원)' && g.name !== 'All' && g.members && g.members.includes(m.name));
                     let groupBadges = '';
                     if (memberGroups.length > 0) {
                         groupBadges = '<div class="flex flex-wrap gap-1 mt-1.5">';
-                        memberGroups.forEach(g => {
-                            groupBadges += `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-xs font-medium border border-slate-200 bg-white text-slate-700"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${g.color};"></span><span>${g.name}</span></span>`;
-                        });
+                        memberGroups.forEach(g => { groupBadges += `<span class="inline-flex items-center space-x-1 px-2 py-0.5 rounded text-xs font-medium border border-slate-200 bg-white text-slate-700"><span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${g.color};"></span><span>${g.name}</span></span>`; });
                         groupBadges += '</div>';
                     }
-
                     const div = document.createElement('div');
                     div.className = 'flex items-center justify-between bg-white p-3.5 rounded-xl border text-sm shadow-sm';
-                    div.innerHTML = `
-                        <div class="flex flex-col flex-1 pr-2">
-                            <span class="font-bold text-slate-800 text-sm">${m.name}</span>
-                            ${groupBadges}
-                        </div>
-                        <div class="flex items-center space-x-2 shrink-0">
-                            <button onclick="editMember('${m.id}', '${m.name}', ${m.isResigned})" class="text-blue-500 hover:text-blue-700 p-1.5 text-sm" title="수정"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="deleteMember('${m.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 text-sm" title="삭제"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    `;
+                    div.innerHTML = `<div class="flex flex-col flex-1 pr-2"><span class="font-bold text-slate-800 text-sm">${m.name}</span>${groupBadges}</div><div class="flex items-center space-x-2 shrink-0"><button onclick="editMember('${m.id}', '${m.name}', ${m.isResigned})" class="text-blue-500 hover:text-blue-700 p-1.5 text-sm" title="수정"><i class="fa-solid fa-pen"></i></button><button onclick="deleteMember('${m.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 text-sm" title="삭제"><i class="fa-solid fa-trash"></i></button></div>`;
                     container.appendChild(div);
                 });
             }
@@ -1451,37 +1332,22 @@
                 resignedMembers.forEach(m => {
                     const div = document.createElement('div');
                     div.className = 'flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 text-sm shadow-sm opacity-75';
-                    div.innerHTML = `
-                        <div class="flex items-center space-x-2.5">
-                            <span class="font-medium text-slate-500 line-through text-sm">${m.name}</span>
-                            <span class="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-xs font-semibold">퇴사</span>
-                        </div>
-                        <div class="flex items-center space-x-2 shrink-0">
-                            <button onclick="editMember('${m.id}', '${m.name}', ${m.isResigned})" class="text-blue-500 hover:text-blue-700 p-1.5 text-sm" title="수정"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="deleteMember('${m.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 text-sm" title="삭제"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    `;
+                    div.innerHTML = `<div class="flex items-center space-x-2.5"><span class="font-medium text-slate-500 line-through text-sm">${m.name}</span><span class="bg-rose-100 text-rose-600 px-2 py-0.5 rounded text-xs font-semibold">퇴사</span></div><div class="flex items-center space-x-2 shrink-0"><button onclick="editMember('${m.id}', '${m.name}', ${m.isResigned})" class="text-blue-500 hover:text-blue-700 p-1.5 text-sm" title="수정"><i class="fa-solid fa-pen"></i></button><button onclick="deleteMember('${m.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 text-sm" title="삭제"><i class="fa-solid fa-trash"></i></button></div>`;
                     resignedContainer.appendChild(div);
                 });
             }
         }
 
         window.editMember = function(id, name, isResigned) {
-            editingMemberId = id;
-            document.getElementById('new-member-name').value = name;
-            document.getElementById('new-member-resigned').checked = isResigned;
-            document.getElementById('resigned-checkbox-wrapper').classList.remove('hidden');
-            document.getElementById('member-save-btn').innerText = '수정완료';
-            document.getElementById('member-cancel-btn').classList.remove('hidden');
+            editingMemberId = id; document.getElementById('new-member-name').value = name;
+            document.getElementById('new-member-resigned').checked = isResigned; document.getElementById('resigned-checkbox-wrapper').classList.remove('hidden');
+            document.getElementById('member-save-btn').innerText = '수정완료'; document.getElementById('member-cancel-btn').classList.remove('hidden');
         };
 
         window.cancelEditMember = function() {
-            editingMemberId = null;
-            document.getElementById('new-member-name').value = '';
-            document.getElementById('new-member-resigned').checked = false;
-            document.getElementById('resigned-checkbox-wrapper').classList.add('hidden');
-            document.getElementById('member-save-btn').innerText = '팀원 추가';
-            document.getElementById('member-cancel-btn').classList.add('hidden');
+            editingMemberId = null; document.getElementById('new-member-name').value = '';
+            document.getElementById('new-member-resigned').checked = false; document.getElementById('resigned-checkbox-wrapper').classList.add('hidden');
+            document.getElementById('member-save-btn').innerText = '팀원 추가'; document.getElementById('member-cancel-btn').classList.add('hidden');
         };
 
         window.saveMember = function() {
@@ -1489,10 +1355,8 @@
             const isResigned = editingMemberId ? document.getElementById('new-member-resigned').checked : false;
             if(!name) return alert('팀원 이름을 입력하세요.');
             if(teamMembers.some(m => m.name === name && m.id !== editingMemberId)) return alert('이미 존재하는 이름입니다.');
-            
             const memberData = { name, isResigned };
-            if(editingMemberId) update(ref(db, 's2_team_members/' + editingMemberId), memberData);
-            else push(membersRef, memberData);
+            if(editingMemberId) update(ref(db, 's2_team_members/' + editingMemberId), memberData); else push(membersRef, memberData);
             cancelEditMember();
         };
 
@@ -1506,8 +1370,7 @@
         function renderGroupList() {
             const container = document.getElementById('group-list-container');
             container.innerHTML = '';
-            
-            const displayGroups = teamGroups.filter(g => g.name !== 'All');
+            const displayGroups = teamGroups.filter(g => g.name !== 'All(전체 인원)' && g.name !== 'All');
 
             if (displayGroups.length === 0) return container.innerHTML = `<p class="text-center text-xs text-slate-400 py-4">등록된 그룹이 없습니다.</p>`;
 
@@ -1518,24 +1381,10 @@
                 if (g.members && g.members.length > 0) {
                     const sortedGroupMembers = [...g.members].sort((a, b) => a.localeCompare(b, 'ko'));
                     memberBadges = '<div class="flex flex-wrap gap-1.5 mt-1.5">';
-                    sortedGroupMembers.forEach(mName => {
-                        memberBadges += `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">${mName}</span>`;
-                    });
+                    sortedGroupMembers.forEach(mName => { memberBadges += `<span class="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs font-medium border border-slate-200">${mName}</span>`; });
                     memberBadges += '</div>';
                 }
-                div.innerHTML = `
-                    <div class="flex items-start space-x-3 flex-1 pr-2">
-                        <span class="w-3.5 h-3.5 rounded-full shrink-0 mt-1" style="background-color: ${g.color};"></span>
-                        <div class="flex flex-col flex-1">
-                            <span class="font-bold text-slate-800 text-sm">${g.name}</span>
-                            ${memberBadges}
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-2 shrink-0">
-                        <button onclick="editGroup('${g.id}', '${g.name}', '${g.color}')" class="text-blue-500 hover:text-blue-700 p-1.5 text-sm"><i class="fa-solid fa-pen"></i></button>
-                        <button onclick="deleteGroup('${g.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 text-sm"><i class="fa-solid fa-trash"></i></button>
-                    </div>
-                `;
+                div.innerHTML = `<div class="flex items-start space-x-3 flex-1 pr-2"><span class="w-3.5 h-3.5 rounded-full shrink-0 mt-1" style="background-color: ${g.color};"></span><div class="flex flex-col flex-1"><span class="font-bold text-slate-800 text-sm">${g.name}</span>${memberBadges}</div></div><div class="flex items-center space-x-2 shrink-0"><button onclick="editGroup('${g.id}', '${g.name}', '${g.color}')" class="text-blue-500 hover:text-blue-700 p-1.5 text-sm"><i class="fa-solid fa-pen"></i></button><button onclick="deleteGroup('${g.id}')" class="text-rose-500 hover:text-rose-700 p-1.5 text-sm"><i class="fa-solid fa-trash"></i></button></div>`;
                 container.appendChild(div);
             });
         }
@@ -1545,7 +1394,6 @@
             container.innerHTML = '';
             const activeMembers = teamMembers.filter(m => !m.isResigned);
             if(activeMembers.length === 0) return container.innerHTML = '<span class="text-xs text-slate-400">등록된 활성 팀원이 없습니다.</span>';
-
             activeMembers.forEach(m => {
                 const lbl = document.createElement('label');
                 lbl.className = 'flex items-center space-x-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs cursor-pointer hover:bg-slate-100 transition';
@@ -1554,50 +1402,38 @@
             });
         }
 
-        window.toggleGroupAllMembers = function(check) {
-            document.querySelectorAll('.group-member-cb').forEach(cb => cb.checked = check);
-        };
+        window.toggleGroupAllMembers = function(check) { document.querySelectorAll('.group-member-cb').forEach(cb => cb.checked = check); };
 
         window.editGroup = function(id, name, color) {
-            editingGroupId = id;
-            document.getElementById('new-group-name').value = name;
+            editingGroupId = id; document.getElementById('new-group-name').value = name;
             const btn = document.querySelector(`#group-color-palette .color-btn[data-color="${color}"]`);
             if(btn) selectColor(color, btn, 'group');
             const groupTarget = teamGroups.find(g => g.id === id);
-            document.querySelectorAll('.group-member-cb').forEach(cb => {
-                cb.checked = groupTarget && groupTarget.members ? groupTarget.members.includes(cb.value) : false;
-            });
-            document.getElementById('group-save-btn').innerText = '수정완료';
-            document.getElementById('group-cancel-btn').classList.remove('hidden');
+            document.querySelectorAll('.group-member-cb').forEach(cb => { cb.checked = groupTarget && groupTarget.members ? groupTarget.members.includes(cb.value) : false; });
+            document.getElementById('group-save-btn').innerText = '수정완료'; document.getElementById('group-cancel-btn').classList.remove('hidden');
         };
 
         window.cancelEditGroup = function() {
-            editingGroupId = null;
-            document.getElementById('new-group-name').value = '';
-            document.getElementById('group-save-btn').innerText = '그룹 추가';
-            document.getElementById('group-cancel-btn').classList.add('hidden');
+            editingGroupId = null; document.getElementById('new-group-name').value = '';
+            document.getElementById('group-save-btn').innerText = '그룹 추가'; document.getElementById('group-cancel-btn').classList.add('hidden');
             document.querySelectorAll('.group-member-cb').forEach(cb => cb.checked = false);
             selectColor('#059669', document.querySelector('#group-color-palette .color-btn[data-color="#059669"]'), 'group');
         };
 
         window.saveGroup = function() {
             const name = document.getElementById('new-group-name').value.trim();
-            if(!name) return alert('그룹명을 입력하세요.');
-            if(name === 'All') return alert('All 그룹명은 시스템 예약어입니다.');
+            if(!name) return alert('그룹명을 입력하세요.'); 
+            if(name === 'All' || name === 'All(전체 인원)') return alert('All(전체 인원) 그룹명은 시스템 예약어입니다.');
             if(teamGroups.some(g => g.name === name && g.id !== editingGroupId)) return alert('이미 존재하는 그룹명입니다.');
-
             const checkedMembers = Array.from(document.querySelectorAll('.group-member-cb:checked')).map(cb => cb.value);
             const groupData = { name, color: selectedGroupColor, members: checkedMembers };
-            if(editingGroupId) update(ref(db, 's2_team_groups/' + editingGroupId), groupData);
-            else push(groupsRef, groupData);
+            if(editingGroupId) update(ref(db, 's2_team_groups/' + editingGroupId), groupData); else push(groupsRef, groupData);
             cancelEditGroup();
         };
 
         window.deleteGroup = function(id) {
-            const targetGroup = teamGroups.find(g => g.name === id);
-            if (targetGroup && targetGroup.name === 'All') {
-                return alert('All 그룹은 삭제할 수 없습니다.');
-            }
+            const targetGroup = teamGroups.find(g => g.id === id || g.name === id);
+            if (targetGroup && (targetGroup.name === 'All(전체 인원)' || targetGroup.name === 'All')) return alert('All(전체 인원) 그룹은 삭제할 수 없습니다.');
             if(confirm('이 그룹을 삭제하시겠습니까?')) {
                 remove(ref(db, 's2_team_groups/' + id));
                 if(editingGroupId === id) cancelEditGroup();
@@ -1611,71 +1447,43 @@
         }
 
         window.openEventModal = function() {
-            document.getElementById('modal-title').innerText = "일정 등록";
-            document.getElementById('event-id').value = "";
-            document.getElementById('f-title').value = "";
-            document.getElementById('f-comment').value = "";
-            document.getElementById('f-url').value = "";
+            document.getElementById('modal-title').innerText = "일정 등록"; document.getElementById('event-id').value = "";
+            document.getElementById('f-title').value = ""; document.getElementById('f-comment').value = ""; document.getElementById('f-url').value = "";
             document.getElementById('f-url-link').classList.add('hidden');
-            
             const selectEl = document.getElementById('f-member');
             if (selectEl.options.length > 0) selectEl.selectedIndex = 0;
-            
             const today = new Date().toISOString().split('T')[0];
-            document.getElementById('f-start').value = today;
-            document.getElementById('f-end').value = today;
+            document.getElementById('f-start').value = today; document.getElementById('f-end').value = today;
             onEntityChange();
-            
-            document.getElementById('modal-delete-btn').classList.add('hidden');
-            document.getElementById('event-modal').classList.remove('hidden');
+            document.getElementById('modal-delete-btn').classList.add('hidden'); document.getElementById('event-modal').classList.remove('hidden');
         };
 
         window.closeEventModal = function() { document.getElementById('event-modal').classList.add('hidden'); };
 
         window.handleEventSubmit = function(e) {
             e.preventDefault();
-            const id = document.getElementById('event-id').value;
-            const memberSelect = document.getElementById('f-member');
+            const id = document.getElementById('event-id').value; const memberSelect = document.getElementById('f-member');
             if(memberSelect.value === "") return alert('담당 주체를 선택해주세요.');
-            
-            const member = memberSelect.value;
-            const title = document.getElementById('f-title').value;
-            
+            const member = memberSelect.value; const title = document.getElementById('f-title').value;
             let color = '#059669';
-            if (isLeaveEvent(title)) {
-                color = '#475569';
-            } else {
+            if (isLeaveEvent(title)) { color = '#475569'; } else {
                 const matchedGroup = teamGroups.find(g => g.name === member);
-                if (matchedGroup) {
-                    color = matchedGroup.color;
-                } else if (memberSelect.options[memberSelect.selectedIndex] && memberSelect.options[memberSelect.selectedIndex].dataset.color) {
-                    color = memberSelect.options[memberSelect.selectedIndex].dataset.color;
-                }
+                if (matchedGroup) { color = matchedGroup.color; } else if (memberSelect.options[memberSelect.selectedIndex] && memberSelect.options[memberSelect.selectedIndex].dataset.color) { color = memberSelect.options[memberSelect.selectedIndex].dataset.color; }
             }
-
-            const comment = document.getElementById('f-comment').value;
-            const url = document.getElementById('f-url').value;
+            const comment = document.getElementById('f-comment').value; const url = document.getElementById('f-url').value;
             const start = document.getElementById('f-start').value;
             const subMembers = Array.from(document.querySelectorAll('.sub-member-cb:checked')).map(cb => cb.value);
-
-            let endObj = new Date(document.getElementById('f-end').value);
-            endObj.setDate(endObj.getDate() + 1);
+            let endObj = new Date(document.getElementById('f-end').value); endObj.setDate(endObj.getDate() + 1);
             const end = endObj.toISOString().split('T')[0];
-
             const eventData = { member, title, comment, url, start, end, color, subMembers };
 
             if (id) {
                 update(ref(db, 's2_team_calendar/' + id), eventData).then(() => {
-                    if (rawCalendarData && rawCalendarData[id]) {
-                        rawCalendarData[id] = eventData;
-                        renderCalendarData();
-                    }
+                    if (rawCalendarData && rawCalendarData[id]) { rawCalendarData[id] = eventData; renderCalendarData(); }
                 });
             } else {
-                const newRef = push(calendarRef);
-                set(newRef, eventData);
+                const newRef = push(calendarRef); set(newRef, eventData);
             }
-            
             closeEventModal();
         };
 
@@ -1684,10 +1492,7 @@
             if (id && confirm('정말 이 일정을 삭제하시겠습니까?')) {
                 remove(ref(db, 's2_team_calendar/' + id));
                 if (rawCalendarData) delete rawCalendarData[id];
-                const eventToRemove = calendar.getEventById(id);
-                if (eventToRemove) {
-                    eventToRemove.remove();
-                }
+                const eventToRemove = calendar.getEventById(id); if (eventToRemove) eventToRemove.remove();
                 closeEventModal();
             }
         };
