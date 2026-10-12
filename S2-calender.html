@@ -28,15 +28,12 @@
         .fc-daygrid-day-number { color: #475569; font-weight: 500; font-size: 12px; padding: 8px !important; }
         .fc-header-toolbar { margin-bottom: 1.5rem !important; }
         
-        /* 캘린더 타이틀 클릭 가능하도록 커서 추가 */
         .fc-toolbar-title { font-size: 1.25rem !important; font-weight: 700; color: #0f172a; cursor: pointer; transition: color 0.2s; }
         .fc-toolbar-title:hover { color: #059669; }
         
         .holiday-event { text-align: center; font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-
         .fc-list-event-time { display: none !important; }
 
-        /* 주말 배경색 분리 (토요일: 연한 푸른색, 일요일: 연한 붉은색) */
         .fc-day-sat { background-color: rgba(239, 246, 255, 0.6) !important; } 
         .fc-day-sun { background-color: rgba(254, 242, 242, 0.6) !important; } 
 
@@ -78,7 +75,7 @@
             
             <div class="flex items-center space-x-3">
                 <!-- 상시 표시되는 실시간 시간 영역 -->
-                <div id="live-clock-container" class="flex items-center space-x-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 shadow-inner">
+                <div id="live-clock-container" class="flex items-center space-x-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 shadow-inner" title="구글 서버 시간 기준 실시간 시계">
                     <i class="fa-regular fa-clock text-emerald-600"></i>
                     <span id="live-clock-text">--:--:--</span>
                 </div>
@@ -454,6 +451,13 @@
         let currentDetailEvent = null;
         
         let liveClockInterval = null;
+        let serverTimeOffset = 0; // 서버-로컬 시간 차이를 저장할 변수
+
+        // Firebase 서버 시간 오프셋 수신
+        const offsetRef = ref(db, '.info/serverTimeOffset');
+        onValue(offsetRef, (snap) => {
+            serverTimeOffset = snap.val() || 0;
+        });
 
         window.handleHiddenTrigger = function() {
             if (hiddenClickCount === 0) {
@@ -482,10 +486,13 @@
             }
         };
 
-        // 🌟 실시간 시계 작동 함수
+        // 🌟 실시간 시계 작동 함수 (구글 파이어베이스 서버 시간 기반)
         function startLiveClock() {
             const updateClock = () => {
-                const now = new Date();
+                // 현재 로컬 시간에 오프셋을 더하여 구글 서버 시간을 계산
+                const estimatedServerTimeMs = Date.now() + serverTimeOffset;
+                const now = new Date(estimatedServerTimeMs);
+
                 const year = now.getFullYear();
                 const month = String(now.getMonth() + 1).padStart(2, '0');
                 const day = String(now.getDate()).padStart(2, '0');
@@ -789,7 +796,6 @@
         };
 
         document.addEventListener('DOMContentLoaded', function() {
-            // 🌟 페이지 진입 시 실시간 시계 상시 작동
             startLiveClock();
 
             onValue(groupsRef, (snapshot) => {
@@ -867,34 +873,23 @@
                     }, 50);
                 },
 
-                // 🌟 일정 노출 순서 변경: [공휴일(최상단)] -> [그룹] -> [개인] -> [연차(최하단)]
                 eventOrder: function(a, b) {
                     const getScore = (evt) => {
-                        // 공휴일은 가장 위에 오도록 점수 0 부여
                         if (evt.source && evt.source.id === 'korea-holidays') return 0;
-                        
                         const title = evt.extendedProps.rawTitle || evt.title;
                         const member = evt.extendedProps.member;
-                        
-                        // 1. 연차/반차 등 휴가 일정은 제일 아래 (점수 3)
                         if (isLeaveEvent(title)) return 3; 
-                        
-                        // 2. 그룹(담당 주체가 등록된 그룹과 일치할 때)은 우선순위 높음 (점수 1)
                         if (teamGroups.some(g => g.name === member)) return 1; 
-                        
-                        // 3. 위 두 조건에 해당하지 않는 개인 일정은 중간 (점수 2)
                         return 2; 
                     };
 
                     const scoreA = getScore(a);
                     const scoreB = getScore(b);
 
-                    // 우선순위가 다르면 점수 순(오름차순)으로 정렬
                     if (scoreA !== scoreB) {
                         return scoreA - scoreB;
                     }
 
-                    // 카테고리가 같을 경우 기존처럼 가나다순 정렬 유지
                     const titleA = (a.extendedProps.rawTitle || a.title).toLowerCase();
                     const titleB = (b.extendedProps.rawTitle || b.title).toLowerCase();
                     return titleA.localeCompare(titleB, 'ko');
@@ -1000,7 +995,6 @@
                     renderCalendarData();
                 }
 
-                // 페이지 진입/데이터 로드 시 오늘 날짜 셀로 자동 포커싱(스크롤 이동)
                 setTimeout(() => {
                     const todayEl = document.querySelector('.fc-day-today');
                     if (todayEl) {
