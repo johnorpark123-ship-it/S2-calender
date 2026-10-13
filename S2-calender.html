@@ -127,7 +127,6 @@
                     <i class="fa-solid fa-calendar-days text-lg"></i>
                 </div>
                 <div>
-                    <!-- cursor-pointer를 cursor-default로 수정하여 기본 화살표 커서 유지 -->
                     <h1 onclick="handleHiddenTrigger(event)" class="font-bold text-base sm:text-lg text-slate-950 tracking-tight flex items-center space-x-2 cursor-default select-none">
                         <span>S2팀 통합 일정 캘린더</span>
                     </h1>
@@ -234,7 +233,15 @@
         </div>
     </header>
 
+    <!-- 🌟 수정된 부분: 달력(왼쪽)과 미리보기(오른쪽)의 레이아웃 순서 변경 -->
     <main class="flex-1 max-w-[120rem] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col lg:flex-row items-center lg:items-stretch justify-center gap-6 overflow-hidden">
+        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex-1 w-full max-w-5xl h-full flex flex-col overflow-hidden relative">
+            <div id="calendar" class="h-full"></div>
+            <div id="loading-spinner" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
+                <i class="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-500"></i>
+            </div>
+        </div>
+
         <aside class="w-full lg:w-80 shrink-0 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center space-x-2">
@@ -250,13 +257,6 @@
                 <p>캘린더의 일정에 마우스를 올리면 미리보기가 표시되며,<br><b>클릭하면 해당 미리보기가 고정</b>됩니다.</p>
             </div>
         </aside>
-
-        <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex-1 w-full max-w-5xl h-full flex flex-col overflow-hidden relative">
-            <div id="calendar" class="h-full"></div>
-            <div id="loading-spinner" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
-                <i class="fa-solid fa-circle-notch fa-spin text-3xl text-emerald-500"></i>
-            </div>
-        </div>
     </main>
 
     <div id="date-picker-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
@@ -561,9 +561,7 @@
             });
         };
 
-        // 🌟 수정된 부분: 이벤트(e)를 받아서 Ctrl, Alt, Shift 키가 모두 눌렸을 때만 동작
         window.handleHiddenTrigger = function(e) {
-            // 마우스 클릭 시점의 단축키 상태 확인
             if (e.ctrlKey && e.altKey && e.shiftKey) {
                 document.getElementById('admin-login-modal').classList.remove('hidden');
                 document.getElementById('admin-pw-input').value = '';
