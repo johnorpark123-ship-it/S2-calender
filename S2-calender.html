@@ -58,7 +58,67 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased selection:bg-emerald-600 selection:text-white">
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased selection:bg-emerald-600 selection:text-white relative">
+
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2.5 pointer-events-none"></div>
+
+    <!-- 커스텀 우클릭 메뉴 -->
+    <div id="custom-context-menu" class="fixed bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 w-36 z-[9999] hidden text-xs font-semibold text-slate-700">
+        <button onclick="handleContextEdit()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center space-x-2 text-slate-700">
+            <i class="fa-solid fa-pen text-emerald-600"></i><span>일정 수정</span>
+        </button>
+        <button onclick="handleContextDelete()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center space-x-2 text-rose-600">
+            <i class="fa-solid fa-trash"></i><span>일정 삭제</span>
+        </button>
+    </div>
+
+    <!-- 완전 분리된 독립형 확인 팝업 모달 -->
+    <div id="custom-confirm-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[99999] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-5 border border-slate-100 transform scale-100 transition-transform" id="custom-confirm-box">
+            <div class="flex items-start space-x-4">
+                <div class="bg-amber-100 text-amber-600 p-2.5 rounded-full shrink-0 mt-1">
+                    <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base mb-1">확인 필요</h3>
+                    <p id="custom-confirm-msg" class="text-slate-600 text-sm whitespace-pre-line leading-relaxed"></p>
+                </div>
+            </div>
+            <div class="flex items-center justify-end space-x-2 pt-2">
+                <button id="custom-confirm-cancel" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">취소</button>
+                <button id="custom-confirm-ok" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-xl shadow-sm transition">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 관리자 로그인 인증 모달 -->
+    <div id="admin-login-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[99999] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-xs w-full p-6 space-y-4 border border-slate-100">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center space-x-2">
+                    <div class="bg-purple-100 text-purple-600 p-2 rounded-lg">
+                        <i class="fa-solid fa-lock text-sm"></i>
+                    </div>
+                    <h3 class="font-bold text-slate-900 text-sm">관리자 인증</h3>
+                </div>
+                <button onclick="closeAdminLoginModal()" class="text-slate-400 hover:text-slate-600 p-1"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="handleAdminLoginSubmit(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">아이디 (ID)</label>
+                    <input type="text" id="admin-id-input" value="admin" readonly class="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-500 font-medium focus:outline-none cursor-not-allowed">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">비밀번호 (PW)</label>
+                    <input type="password" id="admin-pw-input" required placeholder="비밀번호를 입력하세요" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div class="flex items-center justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeAdminLoginModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition">취소</button>
+                    <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold rounded-xl shadow-sm transition">로그인</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
     <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm shrink-0">
         <div class="max-w-[120rem] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -67,14 +127,15 @@
                     <i class="fa-solid fa-calendar-days text-lg"></i>
                 </div>
                 <div>
-                    <h1 onclick="handleHiddenTrigger()" class="font-bold text-base sm:text-lg text-slate-950 tracking-tight flex items-center space-x-2 cursor-pointer select-none" title="3초 내에 10번 연속 클릭 시 개발자 메뉴 활성화">
+                    <!-- cursor-pointer를 cursor-default로 수정하여 기본 화살표 커서 유지 -->
+                    <h1 onclick="handleHiddenTrigger(event)" class="font-bold text-base sm:text-lg text-slate-950 tracking-tight flex items-center space-x-2 cursor-default select-none">
                         <span>S2팀 통합 일정 캘린더</span>
                     </h1>
                 </div>
             </div>
             
             <div class="flex items-center space-x-3">
-                <div id="live-clock-container" class="flex items-center space-x-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 shadow-inner" title="구글 서버 시간 기준 실시간 시계">
+                <div id="live-clock-container" class="flex items-center justify-center space-x-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 shadow-inner w-[165px] tabular-nums" title="구글 서버 시간 기준 실시간 시계">
                     <i class="fa-regular fa-clock text-emerald-600"></i>
                     <span id="live-clock-text">--:--:--</span>
                 </div>
@@ -86,20 +147,20 @@
                             <span class="hidden sm:inline">엑셀 업로드</span>
                             <input type="file" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)">
                         </label>
-
                         <button id="undo-btn" onclick="undoExcelUpload()" disabled class="bg-amber-500 hover:bg-amber-600 disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="직전 엑셀 업로드 전 상태로 되돌립니다">
                             <i class="fa-solid fa-rotate-left"></i>
                             <span class="hidden sm:inline">업로드 취소</span>
                         </button>
-
                         <button onclick="changeLockTimeoutSetting()" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="미리보기 고정 유지 시간 설정">
                             <i class="fa-solid fa-clock-rotate-left"></i>
                             <span class="hidden sm:inline">고정 시간 설정</span>
                         </button>
-
                         <button onclick="resetCalendarData()" class="bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="모든 일정을 초기화하고 공휴일만 남깁니다">
                             <i class="fa-solid fa-rotate-right"></i>
                             <span class="hidden sm:inline">초기화</span>
+                        </button>
+                        <button onclick="hideAdminMenu()" class="bg-slate-500 hover:bg-slate-600 text-white text-xs font-semibold px-2.5 py-2 rounded-lg shadow-sm transition" title="관리자 메뉴 숨기기">
+                            <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
 
@@ -108,13 +169,26 @@
                         <span class="hidden sm:inline">온보딩 포털</span>
                     </a>
 
-                    <!-- 필터 드롭다운 -->
                     <div class="relative" id="filter-container">
                         <button onclick="toggleFilterDropdown(event)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 transition flex items-center space-x-1.5">
                             <i class="fa-solid fa-filter text-emerald-600"></i>
                             <span class="hidden sm:inline">필터</span>
                         </button>
                         <div id="filter-dropdown" class="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-5 z-40 hidden space-y-4" onclick="event.stopPropagation()">
+                            <div>
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+                                    <span class="text-xs font-bold text-slate-800">제목 검색 필터</span>
+                                </div>
+                                <div>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                            <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                                        </span>
+                                        <input type="text" id="filter-title-input" oninput="renderCalendarData()" placeholder="일정 제목에 포함된 단어 검색..." class="w-full bg-slate-50 border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                                    </div>
+                                </div>
+                            </div>
+
                             <div>
                                 <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
                                     <span class="text-xs font-bold text-slate-800">휴가 필터</span>
@@ -125,6 +199,7 @@
                                 </div>
                                 <div id="filter-leave-checkboxes" class="space-y-1 text-xs pr-1"></div>
                             </div>
+
                             <div>
                                 <div class="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
                                     <span class="text-xs font-bold text-slate-800">담당자별 필터</span>
@@ -159,10 +234,7 @@
         </div>
     </header>
 
-    <!-- 🌟 좌우 여백 균형 레이아웃: 캘린더는 정중앙, 좌측 여백에 미리보기 패널 배치 -->
     <main class="flex-1 max-w-[120rem] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col lg:flex-row items-center lg:items-stretch justify-center gap-6 overflow-hidden">
-        
-        <!-- 좌측 여백 활용 미리보기 및 고정 패널 -->
         <aside class="w-full lg:w-80 shrink-0 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col space-y-4">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div class="flex items-center space-x-2">
@@ -179,7 +251,6 @@
             </div>
         </aside>
 
-        <!-- 캘린더 본문 영역 (완벽한 정중앙 위치) -->
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex-1 w-full max-w-5xl h-full flex flex-col overflow-hidden relative">
             <div id="calendar" class="h-full"></div>
             <div id="loading-spinner" class="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10">
@@ -188,7 +259,6 @@
         </div>
     </main>
 
-    <!-- 연도/월 선택 모달 팝업 -->
     <div id="date-picker-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-xl max-w-xs w-full p-6 space-y-4 border border-slate-100">
             <div class="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -198,24 +268,15 @@
             <div class="space-y-3">
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">연도</label>
-                    <select id="picker-year" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                    </select>
+                    <select id="picker-year" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"></select>
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">월</label>
                     <select id="picker-month" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                        <option value="0">1월</option>
-                        <option value="1">2월</option>
-                        <option value="2">3월</option>
-                        <option value="3">4월</option>
-                        <option value="4">5월</option>
-                        <option value="5">6월</option>
-                        <option value="6">7월</option>
-                        <option value="7">8월</option>
-                        <option value="8">9월</option>
-                        <option value="9">10월</option>
-                        <option value="10">11월</option>
-                        <option value="11">12월</option>
+                        <option value="0">1월</option><option value="1">2월</option><option value="2">3월</option>
+                        <option value="3">4월</option><option value="4">5월</option><option value="5">6월</option>
+                        <option value="6">7월</option><option value="7">8월</option><option value="8">9월</option>
+                        <option value="9">10월</option><option value="10">11월</option><option value="11">12월</option>
                     </select>
                 </div>
             </div>
@@ -239,7 +300,7 @@
                 <div class="grid grid-cols-2 gap-3 pt-1">
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">시작일</label>
-                        <input type="date" id="f-start" onchange="onEntityChange()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <input type="date" id="f-start" onchange="onStartDateChange()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">종료일</label>
@@ -247,10 +308,39 @@
                     </div>
                 </div>
 
-                <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">담당 주체 (개인 또는 그룹)</label>
-                    <select id="f-member" onchange="onEntityChange()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                    </select>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">일정 구분</label>
+                        <select id="f-category" onchange="onEntityChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                            <option value="일반 업무">일반 업무</option>
+                            <option value="휴가">휴가</option>
+                            <option value="회의">회의</option>
+                            <option value="기타">기타</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">담당 주체</label>
+                        <select id="f-member" onchange="onEntityChange()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
+                        </select>
+                    </div>
+                </div>
+
+                <div id="leave-type-section" class="hidden bg-slate-50 p-3 rounded-xl border border-slate-200 mt-1">
+                    <label class="block text-xs font-semibold text-slate-600 mb-2">휴가 종류</label>
+                    <div class="flex space-x-4">
+                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                            <input type="radio" name="leave-type" value="연차" onchange="autoFillLeaveTitle(this)" class="text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4">
+                            <span class="text-xs font-medium text-slate-700">연차</span>
+                        </label>
+                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                            <input type="radio" name="leave-type" value="오전 반차" onchange="autoFillLeaveTitle(this)" class="text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4">
+                            <span class="text-xs font-medium text-slate-700">오전 반차</span>
+                        </label>
+                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                            <input type="radio" name="leave-type" value="오후 반차" onchange="autoFillLeaveTitle(this)" class="text-emerald-600 focus:ring-emerald-500 border-slate-300 w-4 h-4">
+                            <span class="text-xs font-medium text-slate-700">오후 반차</span>
+                        </label>
+                    </div>
                 </div>
 
                 <div id="sub-members-section" class="hidden bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
@@ -265,11 +355,10 @@
                 </div>
 
                 <div>
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">일정 제목 (예: 연차, 오후반차, QA 테스트 등)</label>
-                    <input type="text" id="f-title" oninput="checkLeaveTitleInput()" required placeholder="예: 연차 또는 WebVMS QA 테스트" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">일정 제목</label>
+                    <input type="text" id="f-title" required placeholder="예: WebVMS QA 또는 연차" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 </div>
 
-                <!-- 🌟 관련 링크 및 제목 입력 (제목 + URL 쌍 구성) -->
                 <div>
                     <div class="flex items-center justify-between mb-1">
                         <label class="text-xs font-semibold text-slate-600">관련 링크 및 제목</label>
@@ -277,9 +366,7 @@
                             <i class="fa-solid fa-plus text-[10px]"></i> <span>링크 추가</span>
                         </button>
                     </div>
-                    <div id="url-fields-container" class="space-y-2">
-                        <!-- 동적으로 입력 필드 생성됨 -->
-                    </div>
+                    <div id="url-fields-container" class="space-y-2"></div>
                 </div>
 
                 <div>
@@ -349,14 +436,14 @@
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-2">대표 색상</label>
                         <div class="flex flex-wrap gap-2.5" id="group-color-palette">
-                            <button type="button" onclick="selectColor('#059669', this, 'group')" class="w-7 h-7 rounded-full bg-[#059669] ring-2 ring-offset-2 ring-slate-400 transition color-btn" data-color="#059669"></button>
-                            <button type="button" onclick="selectColor('#2563eb', this, 'group')" class="w-7 h-7 rounded-full bg-[#2563eb] border border-transparent transition color-btn" data-color="#2563eb"></button>
-                            <button type="button" onclick="selectColor('#7c3aed', this, 'group')" class="w-7 h-7 rounded-full bg-[#7c3aed] border border-transparent transition color-btn" data-color="#7c3aed"></button>
-                            <button type="button" onclick="selectColor('#db2777', this, 'group')" class="w-7 h-7 rounded-full bg-[#db2777] border border-transparent transition color-btn" data-color="#db2777"></button>
-                            <button type="button" onclick="selectColor('#ea580c', this, 'group')" class="w-7 h-7 rounded-full bg-[#ea580c] border border-transparent transition color-btn" data-color="#ea580c"></button>
-                            <button type="button" onclick="selectColor('#eab308', this, 'group')" class="w-7 h-7 rounded-full bg-[#eab308] border border-transparent transition color-btn" data-color="#eab308"></button>
-                            <button type="button" onclick="selectColor('#0ea5e9', this, 'group')" class="w-7 h-7 rounded-full bg-[#0ea5e9] border border-transparent transition color-btn" data-color="#0ea5e9"></button>
-                            <button type="button" onclick="selectColor('#475569', this, 'group')" class="w-7 h-7 rounded-full bg-[#475569] border border-transparent transition color-btn" data-color="#475569" title="휴가 전용 회색"></button>
+                            <button type="button" onclick="selectColor('#059669', this)" class="w-7 h-7 rounded-full bg-[#059669] ring-2 ring-offset-2 ring-slate-400 transition color-btn" data-color="#059669"></button>
+                            <button type="button" onclick="selectColor('#2563eb', this)" class="w-7 h-7 rounded-full bg-[#2563eb] border border-transparent transition color-btn" data-color="#2563eb"></button>
+                            <button type="button" onclick="selectColor('#7c3aed', this)" class="w-7 h-7 rounded-full bg-[#7c3aed] border border-transparent transition color-btn" data-color="#7c3aed"></button>
+                            <button type="button" onclick="selectColor('#db2777', this)" class="w-7 h-7 rounded-full bg-[#db2777] border border-transparent transition color-btn" data-color="#db2777"></button>
+                            <button type="button" onclick="selectColor('#ea580c', this)" class="w-7 h-7 rounded-full bg-[#ea580c] border border-transparent transition color-btn" data-color="#ea580c"></button>
+                            <button type="button" onclick="selectColor('#eab308', this)" class="w-7 h-7 rounded-full bg-[#eab308] border border-transparent transition color-btn" data-color="#eab308"></button>
+                            <button type="button" onclick="selectColor('#0ea5e9', this)" class="w-7 h-7 rounded-full bg-[#0ea5e9] border border-transparent transition color-btn" data-color="#0ea5e9"></button>
+                            <button type="button" onclick="selectColor('#475569', this)" class="w-7 h-7 rounded-full bg-[#475569] border border-transparent transition color-btn" data-color="#475569" title="휴가 전용 회색"></button>
                         </div>
                     </div>
                     <div>
@@ -413,39 +500,104 @@
         let selectedMembers = new Set();
         let showLeaveEvent = false;
 
-        let hiddenClickCount = 0;
-        let hiddenTimer = null;
         let lastBackupData = null;
         
         let lockedEventId = localStorage.getItem('s2_locked_event_id') || null;
         let lockTimer = null;
         let lockTimeoutMinutes = parseInt(localStorage.getItem('s2_lock_timeout_min') || '5', 10);
+        let contextTargetEventId = null;
 
         const offsetRef = ref(db, '.info/serverTimeOffset');
         onValue(offsetRef, (snap) => {
             window.serverTimeOffset = snap.val() || 0;
         });
 
-        window.handleHiddenTrigger = function() {
-            if (hiddenClickCount === 0) {
-                hiddenTimer = setTimeout(() => { hiddenClickCount = 0; }, 3000);
+        window.showToast = function(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-rose-500' : 'bg-slate-800');
+            const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info');
+            
+            toast.className = `${bgColor} text-white px-4 py-3 rounded-xl shadow-lg text-[13px] font-semibold flex items-center space-x-2 opacity-0 transform translate-y-2 transition-all duration-300 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i><span>${msg}</span>`;
+            container.appendChild(toast);
+            
+            setTimeout(() => { toast.classList.remove('opacity-0', 'translate-y-2'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        };
+
+        window.showConfirm = function(msg) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('custom-confirm-modal');
+                document.getElementById('custom-confirm-msg').innerText = msg;
+                modal.classList.remove('hidden');
+
+                const btnOk = document.getElementById('custom-confirm-ok');
+                const btnCancel = document.getElementById('custom-confirm-cancel');
+
+                const newOk = btnOk.cloneNode(true);
+                const newCancel = btnCancel.cloneNode(true);
+                btnOk.parentNode.replaceChild(newOk, btnOk);
+                btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
+                const cleanup = (result) => {
+                    modal.classList.add('hidden');
+                    resolve(result);
+                };
+
+                document.getElementById('custom-confirm-ok').onclick = () => cleanup(true);
+                document.getElementById('custom-confirm-cancel').onclick = () => cleanup(false);
+            });
+        };
+
+        window.copyToClipboard = function(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('경로가 클립보드에 복사되었습니다.', 'success');
+            }).catch(() => {
+                showToast('복사에 실패했습니다. 권한을 확인해주세요.', 'error');
+            });
+        };
+
+        // 🌟 수정된 부분: 이벤트(e)를 받아서 Ctrl, Alt, Shift 키가 모두 눌렸을 때만 동작
+        window.handleHiddenTrigger = function(e) {
+            // 마우스 클릭 시점의 단축키 상태 확인
+            if (e.ctrlKey && e.altKey && e.shiftKey) {
+                document.getElementById('admin-login-modal').classList.remove('hidden');
+                document.getElementById('admin-pw-input').value = '';
+                setTimeout(() => document.getElementById('admin-pw-input').focus(), 100);
             }
-            hiddenClickCount++;
-            if (hiddenClickCount >= 10) {
-                clearTimeout(hiddenTimer);
-                hiddenClickCount = 0;
+        };
+
+        window.closeAdminLoginModal = function() {
+            document.getElementById('admin-login-modal').classList.add('hidden');
+        };
+
+        window.handleAdminLoginSubmit = function(e) {
+            e.preventDefault();
+            const id = document.getElementById('admin-id-input').value.trim();
+            const pw = document.getElementById('admin-pw-input').value.trim();
+
+            if (id === 'admin' && pw === 'admin') {
+                closeAdminLoginModal();
                 const adminDiv = document.getElementById('hidden-admin-buttons');
-                const isHidden = adminDiv.classList.contains('hidden');
-                if (isHidden) {
-                    adminDiv.classList.remove('hidden');
-                    adminDiv.classList.add('flex');
-                    alert('🎉 히든 관리자 메뉴가 활성화되었습니다!');
-                } else {
-                    adminDiv.classList.remove('flex');
-                    adminDiv.classList.add('hidden');
-                    alert('🔒 히든 관리자 메뉴가 다시 숨겨졌습니다.');
-                }
+                adminDiv.classList.remove('hidden');
+                adminDiv.classList.add('flex');
+                showToast('관리자 인증이 완료되었습니다!', 'success');
+            } else {
+                showToast('비밀번호가 일치하지 않습니다.', 'error');
+                document.getElementById('admin-pw-input').value = '';
+                document.getElementById('admin-pw-input').focus();
             }
+        };
+
+        window.hideAdminMenu = function() {
+            const adminDiv = document.getElementById('hidden-admin-buttons');
+            adminDiv.classList.remove('flex');
+            adminDiv.classList.add('hidden');
+            showToast('관리자 메뉴가 숨겨졌습니다.', 'info');
         };
 
         window.changeLockTimeoutSetting = function() {
@@ -456,10 +608,13 @@
                 if (!isNaN(val) && val > 0) {
                     lockTimeoutMinutes = val;
                     localStorage.setItem('s2_lock_timeout_min', val);
-                    alert(`미리보기 고정 시간이 ${val}분으로 설정되었습니다.`);
-                    if (lockedEventId) restoreLockedPreview();
+                    showToast(`고정 시간이 ${val}분으로 설정되었습니다.`, 'success');
+                    if (lockedEventId && calendar) {
+                        const evt = calendar.getEventById(lockedEventId);
+                        if (evt) renderPreviewBox(evt);
+                    }
                 } else {
-                    alert('올바른 숫자를 입력해주세요.');
+                    showToast('올바른 숫자를 입력해주세요.', 'error');
                 }
             }
         };
@@ -493,10 +648,13 @@
             { name: '딥샤', isResigned: false }, { name: '기타', isResigned: false }
         ];
 
-        function isLeaveEvent(title) {
-            if (!title) return false;
-            const t = title.replace(/\s+/g, '');
-            return t.includes('연차') || t.includes('반차');
+        function isLeaveEvent(item) {
+            if (item.category === '휴가' || item.category === '연차/반차') return true;
+            if (item.title) {
+                const t = item.title.replace(/\s+/g, '');
+                return t.includes('연차') || t.includes('반차');
+            }
+            return false;
         }
 
         function initDatePickerOptions() {
@@ -535,11 +693,11 @@
             closeDatePickerModal();
         };
 
-        window.handleExcelUpload = function(e) {
+        window.handleExcelUpload = async function(e) {
             const file = e.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(event) {
+            reader.onload = async function(event) {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 const sheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -628,11 +786,12 @@
                                 let dObj = new Date(dateStr);
                                 dObj.setDate(dObj.getDate() + 1);
                                 let endDateStr = dObj.toISOString().split('T')[0];
-
-                                if (isLeaveEvent(title)) {
+                                
+                                const tempItem = { title: title };
+                                if (isLeaveEvent(tempItem)) {
                                     individualEvents.push({
                                         member: name, title: title, start: dateStr, end: endDateStr,
-                                        color: '#475569', comment: '엑셀 휴가 등록', url: '', subMembers: []
+                                        category: '휴가', color: '#475569', comment: '엑셀 휴가 등록', url: '', subMembers: []
                                     });
                                 } else {
                                     const key = `${dateStr}_${title}_${part}`; 
@@ -656,7 +815,7 @@
                     const membersArr = Array.from(evt.members);
                     let assignMember = evt.part === 'All' ? 'All(전체 인원)' : evt.part;
                     let subMembers = [];
-                    let commentTxt = "엑셀 자동 등록";
+                    let commentTxt = "👥 엑셀 자동 등록";
                     
                     if (membersArr.length > 1) {
                         assignMember = evt.part === 'All' ? 'All(전체 인원)' : evt.part; 
@@ -667,7 +826,7 @@
                     const sig = `${evt.start}_${assignMember}_${evt.title}`.trim();
                     const eventData = {
                         member: assignMember, title: evt.title, start: evt.start, end: evt.end,
-                        color: evt.color, comment: commentTxt, url: "", subMembers: subMembers
+                        category: '일반 업무', color: evt.color, comment: commentTxt, url: "", subMembers: subMembers
                     };
 
                     let targetKey = existingEventMap.get(sig);
@@ -685,39 +844,44 @@
                 });
 
                 if (processedCount > 0) {
-                    if (confirm(`엑셀 파일에서 총 ${processedCount}건의 일정을 독립 일정으로 파싱했습니다.\n반영하시겠습니까?`)) {
+                    if (await showConfirm(`엑셀 파일에서 총 ${processedCount}건의 일정을 독립 일정으로 파싱했습니다.\n반영하시겠습니까?`)) {
                         lastBackupData = rawCalendarData ? JSON.parse(JSON.stringify(rawCalendarData)) : {};
                         document.getElementById('undo-btn').removeAttribute('disabled');
                         update(ref(db), updates).then(() => {
                             e.target.value = '';
+                            showToast('엑셀 데이터가 성공적으로 반영되었습니다.', 'success');
                         }).catch(err => {
-                            alert('반영 중 오류가 발생했습니다: ' + err.message);
+                            showToast('반영 중 오류가 발생했습니다.', 'error');
                         });
+                    } else {
+                        e.target.value = '';
                     }
                 } else {
-                    alert('파싱된 일정이 없습니다.');
+                    showToast('파싱된 일정이 없습니다.', 'error');
                     e.target.value = '';
                 }
             };
             reader.readAsArrayBuffer(file);
         };
 
-        window.undoExcelUpload = function() {
-            if (!lastBackupData) return alert('되돌릴 수 있는 기록이 없습니다.');
-            if (confirm('가장 최근 업로드 전 상태로 되돌리시겠습니까?')) {
+        window.undoExcelUpload = async function() {
+            if (!lastBackupData) return showToast('되돌릴 수 있는 기록이 없습니다.', 'error');
+            if (await showConfirm('가장 최근 업로드 전 상태로 되돌리시겠습니까?')) {
                 set(calendarRef, lastBackupData).then(() => {
                     lastBackupData = null;
                     document.getElementById('undo-btn').setAttribute('disabled', 'true');
-                }).catch(err => alert('오류 발생: ' + err.message));
+                    showToast('되돌리기 완료되었습니다.', 'success');
+                }).catch(err => showToast('오류 발생', 'error'));
             }
         };
 
-        window.resetCalendarData = function() {
-            if (confirm('정말로 모든 일정을 초기화하시겠습니까?')) {
+        window.resetCalendarData = async function() {
+            if (await showConfirm('정말로 모든 일정을 초기화하시겠습니까? (공휴일만 남습니다)')) {
                 set(calendarRef, null).then(() => {
                     lastBackupData = null;
                     document.getElementById('undo-btn').setAttribute('disabled', 'true');
-                }).catch(err => alert('오류 발생: ' + err.message));
+                    showToast('일정이 초기화되었습니다.', 'success');
+                }).catch(err => showToast('오류 발생', 'error'));
             }
         };
 
@@ -727,6 +891,7 @@
             if (filterContainer && dropdown && !filterContainer.contains(event.target)) {
                 dropdown.classList.add('hidden');
             }
+            document.getElementById('custom-context-menu').classList.add('hidden');
         });
 
         window.toggleFilterDropdown = function(event) {
@@ -799,7 +964,8 @@
                 },
                 buttonText: { month: '월', week: '주', list: '목록' },
                 height: '100%',
-                selectable: true,
+                
+                selectable: false,
                 editable: true,
                 
                 datesSet: function(info) {
@@ -820,7 +986,8 @@
                         if (evt.source && evt.source.id === 'korea-holidays') return 0;
                         const title = evt.extendedProps.rawTitle || evt.title;
                         const member = evt.extendedProps.member;
-                        if (isLeaveEvent(title)) return 3; 
+                        const cat = evt.extendedProps.category;
+                        if (cat === '휴가' || title.includes('연차') || title.includes('반차')) return 3; 
                         if (teamGroups.some(g => g.name === member)) return 1; 
                         return 2; 
                     };
@@ -861,15 +1028,6 @@
                     }
                 }],
                 
-                select: function(info) {
-                    openEventModal();
-                    document.getElementById('f-start').value = info.startStr;
-                    const endDate = new Date(info.endStr);
-                    endDate.setDate(endDate.getDate() - 1);
-                    document.getElementById('f-end').value = endDate.toISOString().split('T')[0];
-                    onEntityChange();
-                },
-                
                 eventClick: function(info) {
                     const evt = info.event;
                     if (evt.source && evt.source.id === 'korea-holidays') return;
@@ -878,6 +1036,18 @@
                     localStorage.setItem('s2_locked_event_id', evt.id);
                     renderPreviewBox(evt);
                     startLockTimer();
+                },
+
+                eventDidMount: function(info) {
+                    if (info.event.source && info.event.source.id === 'korea-holidays') return;
+                    info.el.addEventListener('contextmenu', function(e) {
+                        e.preventDefault();
+                        contextTargetEventId = info.event.id;
+                        const menu = document.getElementById('custom-context-menu');
+                        menu.style.top = `${e.pageY}px`;
+                        menu.style.left = `${e.pageX}px`;
+                        menu.classList.remove('hidden');
+                    });
                 },
 
                 eventMouseEnter: function(info) {
@@ -895,12 +1065,26 @@
             });
             calendar.render();
 
+            calendarEl.addEventListener('dblclick', function(e) {
+                const dayCell = e.target.closest('.fc-daygrid-day');
+                if (dayCell) {
+                    const dateStr = dayCell.getAttribute('data-date');
+                    if (dateStr) {
+                        openEventModal();
+                        document.getElementById('f-start').value = dateStr;
+                        document.getElementById('f-end').value = dateStr;
+                        onStartDateChange();
+                    }
+                }
+            });
+
             onValue(calendarRef, (snapshot) => {
                 rawCalendarData = snapshot.val() || {};
                 document.getElementById('loading-spinner').classList.add('hidden');
                 
+                renderCalendarData();
+
                 if (isInitialLoad) {
-                    renderCalendarData();
                     isInitialLoad = false;
                     if (lockedEventId && calendar) {
                         setTimeout(() => {
@@ -914,7 +1098,6 @@
                         }, 500);
                     }
                 } else {
-                    renderCalendarData();
                     if (lockedEventId && calendar) {
                         const lockedEvt = calendar.getEventById(lockedEventId);
                         if (lockedEvt) renderPreviewBox(lockedEvt);
@@ -929,6 +1112,19 @@
                 }, 300);
             });
         });
+
+        window.handleContextEdit = function() {
+            document.getElementById('custom-context-menu').classList.add('hidden');
+            if (contextTargetEventId) editEventFromPreview(contextTargetEventId);
+        };
+
+        window.handleContextDelete = function() {
+            document.getElementById('custom-context-menu').classList.add('hidden');
+            if (contextTargetEventId) {
+                document.getElementById('event-id').value = contextTargetEventId;
+                handleEventDelete();
+            }
+        };
 
         function startLockTimer() {
             if (lockTimer) clearTimeout(lockTimer);
@@ -959,14 +1155,12 @@
             `;
         }
 
-        // 🌟 웹 주소 형식인지 엄격하게 판별하는 함수
         function isWebUrl(str) {
             if (!str) return false;
             let u = str.trim().toLowerCase();
             return u.startsWith('http://') || u.startsWith('https://') || u.startsWith('www.');
         }
 
-        // 🌟 웹 주소일 때만 올바른 링크 형태로 변환
         function formatWebUrl(rawUrl) {
             if (!rawUrl) return '#';
             let u = rawUrl.trim();
@@ -982,6 +1176,7 @@
 
             const isHoliday = (evt.source && evt.source.id === 'korea-holidays');
             const title = evt.extendedProps.rawTitle || evt.title;
+            const category = evt.extendedProps.category || '일반 업무';
             const member = evt.extendedProps.member || (isHoliday ? '공휴일' : '강인현');
             const startStr = evt.startStr.split('T')[0];
             
@@ -1005,7 +1200,6 @@
                 subListHtml = `<div class="mt-2 pt-2 border-t border-slate-100"><span class="font-semibold text-slate-500 block mb-1">담당자</span><p class="text-slate-700 text-[11px]">${member}</p></div>`;
             }
 
-            // 🌟 [제목 + 링크] 형식 파싱 및 웹 주소일 때만 하이퍼링크 적용
             let urlHtml = '';
             if (urlData) {
                 const lines = urlData.split('\n').map(l => l.trim()).filter(l => l !== '');
@@ -1032,11 +1226,16 @@
                                     <div class="text-blue-600 truncate mt-0.5">${linkVal}</div>
                                 </a>`;
                         } else {
-                            // 로컬 디렉토리 경로 등 웹 주소가 아닌 경우 일반 텍스트 상자로 표시
+                            const escapedVal = linkVal.replace(/\\/g, '\\\\');
                             urlHtml += `
-                                <div class="bg-slate-50 border border-slate-200 p-2 rounded-lg text-[11px]">
-                                    <div class="font-bold text-slate-700">${linkTitle}</div>
-                                    <div class="text-slate-500 truncate mt-0.5 select-all" title="로컬 경로 (복사 가능)">${linkVal}</div>
+                                <div class="bg-slate-50 border border-slate-200 p-2 rounded-lg flex items-center justify-between text-[11px] gap-2">
+                                    <div class="overflow-hidden flex-1">
+                                        <div class="font-bold text-slate-700">${linkTitle}</div>
+                                        <div class="text-slate-500 truncate mt-0.5 select-all" title="로컬 경로">${linkVal}</div>
+                                    </div>
+                                    <button type="button" onclick="copyToClipboard('${escapedVal}')" class="shrink-0 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 w-7 h-7 rounded flex items-center justify-center transition" title="경로 복사">
+                                        <i class="fa-regular fa-copy"></i>
+                                    </button>
                                 </div>`;
                         }
                     });
@@ -1050,12 +1249,22 @@
                 document.getElementById('left-panel-unlock-btn').classList.remove('hidden');
             }
 
+            let badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm" style="background-color: ${evt.backgroundColor || '#059669'};">${member}</span>`;
+            if (!isHoliday && category) {
+                badgeHtml = `
+                    <div class="flex items-center space-x-1.5">
+                        ${badgeHtml}
+                        <span class="text-[10px] text-slate-500 font-semibold bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">${category}</span>
+                    </div>
+                `;
+            }
+
             previewContainer.className = "flex-1 flex flex-col justify-between items-stretch text-left p-4 text-xs bg-white rounded-xl border border-emerald-300 shadow-sm transition-all";
             previewContainer.innerHTML = `
                 <div class="w-full space-y-2 overflow-y-auto pr-1">
                     <div class="flex items-center justify-between">
-                        <span class="px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm" style="background-color: ${evt.backgroundColor || '#059669'};">${member}</span>
-                        <span class="text-[10px] text-slate-400">${startStr}${startStr !== endStr ? ' ~ ' + endStr : ''}</span>
+                        ${badgeHtml}
+                        <span class="text-[10px] text-slate-400 shrink-0 ml-2">${startStr}${startStr !== endStr ? ' ~ ' + endStr : ''}</span>
                     </div>
                     <h3 class="font-bold text-slate-900 text-sm leading-snug">${title}</h3>
                     <p class="text-slate-600 text-[11px] bg-slate-50 p-2.5 rounded-lg border border-slate-100 whitespace-pre-line">${comment}</p>
@@ -1067,6 +1276,9 @@
                     <button onclick="editEventFromPreview('${evt.id}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-sm transition flex items-center space-x-1">
                         <i class="fa-solid fa-pen text-[10px]"></i> <span>수정</span>
                     </button>
+                    <button onclick="deleteEventFromPreview('${evt.id}')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold rounded-lg transition flex items-center space-x-1">
+                        <i class="fa-solid fa-trash text-[10px]"></i> <span>삭제</span>
+                    </button>
                 </div>` : ''}
             `;
         }
@@ -1077,8 +1289,37 @@
 
             document.getElementById('modal-title').innerText = "일정 수정";
             document.getElementById('event-id').value = evt.id;
-            document.getElementById('f-title').value = evt.extendedProps.rawTitle || evt.title;
             
+            let catValue = evt.extendedProps.category;
+            if (!catValue) {
+                if(evt.extendedProps.rawTitle && (evt.extendedProps.rawTitle.includes('연차') || evt.extendedProps.rawTitle.includes('반차'))) catValue = '휴가';
+                else catValue = '일반 업무';
+            }
+            document.getElementById('f-category').value = catValue;
+            
+            const titleVal = evt.extendedProps.rawTitle || evt.title;
+            document.getElementById('f-title').value = titleVal;
+            
+            if (catValue === '휴가') {
+                document.getElementById('leave-type-section').classList.remove('hidden');
+                const cleanTitle = titleVal.replace(/\s+/g, '');
+                
+                document.querySelectorAll('input[name="leave-type"]').forEach(r => {
+                    if (r.value === '오전 반차' && cleanTitle.includes('오전반차')) {
+                        r.checked = true;
+                    } else if (r.value === '오후 반차' && cleanTitle.includes('오후반차')) {
+                        r.checked = true;
+                    } else if (r.value === '연차' && cleanTitle.includes('연차')) {
+                        r.checked = true;
+                    } else {
+                        r.checked = false;
+                    }
+                });
+            } else {
+                document.getElementById('leave-type-section').classList.add('hidden');
+                document.querySelectorAll('input[name="leave-type"]').forEach(r => r.checked = false);
+            }
+
             const assignedEntity = evt.extendedProps.member || '강인현';
             const memberSelect = document.getElementById('f-member');
             
@@ -1103,7 +1344,7 @@
                 document.getElementById('f-end').value = evt.startStr.split('T')[0];
             }
 
-            onEntityChange();
+            onStartDateChange(); 
 
             const subMembers = evt.extendedProps.subMembers || [];
             document.querySelectorAll('.sub-member-cb').forEach(cb => {
@@ -1130,7 +1371,11 @@
             document.getElementById('event-modal').classList.remove('hidden');
         };
 
-        // 🌟 링크 제목과 주소를 각각 입력받는 필드 렌더링 함수
+        window.deleteEventFromPreview = function(eventId) {
+            document.getElementById('event-id').value = eventId;
+            handleEventDelete();
+        };
+
         window.renderUrlFields = function(items) {
             const container = document.getElementById('url-fields-container');
             container.innerHTML = '';
@@ -1138,11 +1383,13 @@
             
             items.forEach((item) => {
                 const wrapper = document.createElement('div');
-                wrapper.className = 'flex items-center space-x-2';
+                wrapper.className = 'flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 w-full bg-slate-50/50 p-2 sm:p-0 rounded-lg sm:bg-transparent';
                 wrapper.innerHTML = `
-                    <input type="text" value="${item.title || ''}" placeholder="링크 제목 (예: 가이드 문서)" class="url-title-input w-1/3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                    <input type="text" value="${item.url || ''}" placeholder="URL 또는 C:\\ 폴더 경로" class="url-input-item flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
-                    ${totalCount > 1 ? `<button type="button" onclick="removeUrlField(this)" class="bg-rose-50 hover:bg-rose-100 text-rose-500 p-2.5 rounded-xl transition text-xs shrink-0" title="링크 삭제"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                    <input type="text" value="${item.title || ''}" placeholder="링크 제목" class="url-title-input w-full sm:w-1/3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <div class="flex w-full flex-1 space-x-2">
+                        <input type="text" value="${item.url || ''}" placeholder="URL 또는 로컬 C:\\ 경로" class="url-input-item w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        ${totalCount > 1 ? `<button type="button" onclick="removeUrlField(this)" class="bg-rose-50 hover:bg-rose-100 text-rose-500 px-3 py-2 rounded-xl transition text-xs shrink-0 flex items-center justify-center" title="삭제"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                    </div>
                 `;
                 container.appendChild(wrapper);
             });
@@ -1150,7 +1397,7 @@
 
         window.addUrlField = function() {
             const container = document.getElementById('url-fields-container');
-            const rows = container.querySelectorAll('.flex');
+            const rows = container.children;
             const currentItems = Array.from(rows).map(row => ({
                 title: row.querySelector('.url-title-input').value,
                 url: row.querySelector('.url-input-item').value
@@ -1160,11 +1407,11 @@
         };
 
         window.removeUrlField = function(btn) {
-            const wrapper = btn.parentElement;
+            const wrapper = btn.closest('.flex-col');
             const container = document.getElementById('url-fields-container');
             if (container.children.length > 1) {
                 wrapper.remove();
-                const rows = container.querySelectorAll('.flex');
+                const rows = container.children;
                 const currentItems = Array.from(rows).map(row => ({
                     title: row.querySelector('.url-title-input').value,
                     url: row.querySelector('.url-input-item').value
@@ -1188,28 +1435,40 @@
             }
         }
 
-        window.checkLeaveTitleInput = function() {
-            const titleVal = document.getElementById('f-title').value;
-            const selectEl = document.getElementById('f-member');
-            if (isLeaveEvent(titleVal)) {
-                if(selectEl.options[selectEl.selectedIndex]) {
-                    selectEl.options[selectEl.selectedIndex].dataset.color = '#475569';
-                }
-            } else {
-                onEntityChange();
+        window.onStartDateChange = function() {
+            const startInput = document.getElementById('f-start');
+            const endInput = document.getElementById('f-end');
+            endInput.min = startInput.value;
+            if (endInput.value < startInput.value) {
+                endInput.value = startInput.value;
             }
+            onEntityChange();
+        };
+
+        window.autoFillLeaveTitle = function(radioElem) {
+            const titleInput = document.getElementById('f-title');
+            titleInput.value = radioElem.value;
         };
 
         window.onEntityChange = function() {
             const selectEl = document.getElementById('f-member');
             const selectedVal = selectEl.value;
-            const titleVal = document.getElementById('f-title').value;
+            const categoryVal = document.getElementById('f-category').value;
             const subSection = document.getElementById('sub-members-section');
             const container = document.getElementById('sub-members-checkboxes');
+            
+            const leaveSection = document.getElementById('leave-type-section');
+            if (categoryVal === '휴가') {
+                leaveSection.classList.remove('hidden');
+            } else {
+                leaveSection.classList.add('hidden');
+                document.querySelectorAll('input[name="leave-type"]').forEach(r => r.checked = false);
+            }
+
             container.innerHTML = '';
 
             if (selectEl.options[selectEl.selectedIndex]) {
-                if (isLeaveEvent(titleVal)) {
+                if (categoryVal === '휴가') {
                     selectEl.options[selectEl.selectedIndex].dataset.color = '#475569';
                 } else {
                     const matchedGroup = teamGroups.find(g => g.name === selectedVal);
@@ -1231,13 +1490,21 @@
 
                 let membersWithConflict = new Set();
                 if (rawCalendarData && startStr && endStr) {
-                    const sDate = new Date(startStr);
-                    const eDate = new Date(endStr);
+                    const [sY, sM, sD] = startStr.split('-').map(Number);
+                    const sDate = new Date(sY, sM - 1, sD);
+                    const [eY, eM, eD] = endStr.split('-').map(Number);
+                    const eDate = new Date(eY, eM - 1, eD);
+
                     Object.keys(rawCalendarData).forEach(key => {
                         if (key === currentEditingId) return;
                         const evt = rawCalendarData[key];
-                        const evStart = new Date(evt.start);
-                        const evEnd = new Date(evt.end ? evt.end : evt.start);
+                        
+                        const [evSY, evSM, evSD] = evt.start.split('-').map(Number);
+                        const evStart = new Date(evSY, evSM - 1, evSD);
+                        const evEndRaw = evt.end ? evt.end : evt.start;
+                        const [evEY, evEM, evED] = evEndRaw.split('-').map(Number);
+                        const evEnd = new Date(evEY, evEM - 1, evED);
+                        
                         if (sDate <= evEnd && eDate >= evStart) {
                             if (teamMembers.some(m => m.name === evt.member)) membersWithConflict.add(evt.member);
                             if (evt.subMembers && Array.isArray(evt.subMembers)) {
@@ -1318,38 +1585,53 @@
             renderFilterCheckboxes();
         };
 
-        function renderCalendarData() {
+        window.renderCalendarData = function() {
             if (!calendar) return;
             const oldSource = calendar.getEventSourceById('firebase-data');
             if (oldSource) oldSource.remove();
 
             if (rawCalendarData) {
+                const titleInput = document.getElementById('filter-title-input');
+                const titleKeyword = titleInput ? titleInput.value.trim().toLowerCase() : '';
+                
                 const anyMemberSelected = selectedMembers.size > 0;
-                const anyFilterActive = anyMemberSelected || showLeaveEvent;
 
                 const eventsArray = Object.keys(rawCalendarData).reduce((arr, key) => {
                     const item = rawCalendarData[key];
-                    const isLeave = isLeaveEvent(item.title);
-                    if (!anyFilterActive) { arr.push(createCalendarEventObject(key, item)); return arr; }
+                    const isLeave = isLeaveEvent(item);
+                    
+                    if (titleKeyword && (!item.title || !item.title.toLowerCase().includes(titleKeyword))) {
+                        return arr;
+                    }
+                    
+                    if (!anyMemberSelected && !showLeaveEvent) { 
+                        arr.push(createCalendarEventObject(key, item)); 
+                        return arr; 
+                    }
 
                     let match = false;
-                    if (isLeave && showLeaveEvent) match = true;
+                    if (showLeaveEvent && isLeave) match = true;
                     if (anyMemberSelected) {
                         if (selectedMembers.has(item.member)) match = true;
                         if (item.subMembers && Array.isArray(item.subMembers)) {
                             if (item.subMembers.some(sm => selectedMembers.has(sm))) match = true;
                         }
                     }
+                    
                     if (match) arr.push(createCalendarEventObject(key, item));
                     return arr;
                 }, []);
                 
                 calendar.addEventSource({ id: 'firebase-data', events: eventsArray });
             }
-        }
+        };
 
         function createCalendarEventObject(key, item) {
-            const isLeave = isLeaveEvent(item.title);
+            const isLeave = isLeaveEvent(item);
+            
+            let assignedCategory = item.category || '일반 업무';
+            if (isLeave) assignedCategory = '휴가';
+
             let eventColor = item.color || '#059669';
             if (isLeave) {
                 eventColor = '#475569';
@@ -1369,8 +1651,9 @@
                 id: key, title: `[${item.member}] ${item.title}`, start: item.start, end: validEnd, allDay: true,
                 backgroundColor: eventColor, borderColor: eventColor,
                 extendedProps: {
-                    member: item.member, rawTitle: item.title, comment: item.comment || '',
-                    url: item.url || '', subMembers: item.subMembers || []
+                    member: item.member, rawTitle: item.title, category: assignedCategory, 
+                    comment: item.comment || '', url: item.url || '', subMembers: item.subMembers || [],
+                    groupId: item.groupId || null
                 }
             };
         }
@@ -1391,7 +1674,7 @@
             }
         };
 
-        window.selectColor = function(color, btnElem, type) {
+        window.selectColor = function(color, btnElem) {
             selectedGroupColor = color;
             document.querySelectorAll(`#group-color-palette .color-btn`).forEach(b => b.classList.remove('ring-2', 'ring-offset-2', 'ring-slate-400'));
             if(btnElem) btnElem.classList.add('ring-2', 'ring-offset-2', 'ring-slate-400');
@@ -1412,7 +1695,7 @@
             select.innerHTML = '';
             
             const defaultOpt = document.createElement('option');
-            defaultOpt.value = ""; defaultOpt.disabled = true; defaultOpt.selected = true; defaultOpt.textContent = "담당 주체를 선택하세요";
+            defaultOpt.value = ""; defaultOpt.disabled = true; defaultOpt.selected = true; defaultOpt.textContent = "담당 주체 선택";
             select.appendChild(defaultOpt);
 
             if (teamGroups.length > 0) {
@@ -1500,17 +1783,19 @@
         window.saveMember = function() {
             const name = document.getElementById('new-member-name').value.trim();
             const isResigned = editingMemberId ? document.getElementById('new-member-resigned').checked : false;
-            if(!name) return alert('팀원 이름을 입력하세요.');
-            if(teamMembers.some(m => m.name === name && m.id !== editingMemberId)) return alert('이미 존재하는 이름입니다.');
+            if(!name) return showToast('팀원 이름을 입력하세요.', 'error');
+            if(teamMembers.some(m => m.name === name && m.id !== editingMemberId)) return showToast('이미 존재하는 이름입니다.', 'error');
             const memberData = { name, isResigned };
             if(editingMemberId) update(ref(db, 's2_team_members/' + editingMemberId), memberData); else push(membersRef, memberData);
             cancelEditMember();
+            showToast('팀원 정보가 저장되었습니다.', 'success');
         };
 
-        window.deleteMember = function(id) {
-            if(confirm('이 팀원을 정말 삭제하시겠습니까?')) {
+        window.deleteMember = async function(id) {
+            if (await showConfirm('이 팀원을 정말 삭제하시겠습니까?')) {
                 remove(ref(db, 's2_team_members/' + id));
                 if(editingMemberId === id) cancelEditMember();
+                showToast('팀원이 삭제되었습니다.', 'success');
             }
         };
 
@@ -1554,7 +1839,7 @@
         window.editGroup = function(id, name, color) {
             editingGroupId = id; document.getElementById('new-group-name').value = name;
             const btn = document.querySelector(`#group-color-palette .color-btn[data-color="${color}"]`);
-            if(btn) selectColor(color, btn, 'group');
+            if(btn) selectColor(color, btn);
             const groupTarget = teamGroups.find(g => g.id === id);
             document.querySelectorAll('.group-member-cb').forEach(cb => { cb.checked = groupTarget && groupTarget.members ? groupTarget.members.includes(cb.value) : false; });
             document.getElementById('group-save-btn').innerText = '수정완료'; document.getElementById('group-cancel-btn').classList.remove('hidden');
@@ -1564,26 +1849,28 @@
             editingGroupId = null; document.getElementById('new-group-name').value = '';
             document.getElementById('group-save-btn').innerText = '그룹 추가'; document.getElementById('group-cancel-btn').classList.add('hidden');
             document.querySelectorAll('.group-member-cb').forEach(cb => cb.checked = false);
-            selectColor('#059669', document.querySelector('#group-color-palette .color-btn[data-color="#059669"]'), 'group');
+            selectColor('#059669', document.querySelector('#group-color-palette .color-btn[data-color="#059669"]'));
         };
 
         window.saveGroup = function() {
             const name = document.getElementById('new-group-name').value.trim();
-            if(!name) return alert('그룹명을 입력하세요.'); 
-            if(name === 'All' || name === 'All(전체 인원)') return alert('All(전체 인원) 그룹명은 시스템 예약어입니다.');
-            if(teamGroups.some(g => g.name === name && g.id !== editingGroupId)) return alert('이미 존재하는 그룹명입니다.');
+            if(!name) return showToast('그룹명을 입력하세요.', 'error'); 
+            if(name === 'All' || name === 'All(전체 인원)') return showToast('해당 그룹명은 예약어입니다.', 'error');
+            if(teamGroups.some(g => g.name === name && g.id !== editingGroupId)) return showToast('이미 존재하는 그룹명입니다.', 'error');
             const checkedMembers = Array.from(document.querySelectorAll('.group-member-cb:checked')).map(cb => cb.value);
             const groupData = { name, color: selectedGroupColor, members: checkedMembers };
             if(editingGroupId) update(ref(db, 's2_team_groups/' + editingGroupId), groupData); else push(groupsRef, groupData);
             cancelEditGroup();
+            showToast('그룹 정보가 저장되었습니다.', 'success');
         };
 
-        window.deleteGroup = function(id) {
+        window.deleteGroup = async function(id) {
             const targetGroup = teamGroups.find(g => g.id === id || g.name === id);
-            if (targetGroup && (targetGroup.name === 'All(전체 인원)' || targetGroup.name === 'All')) return alert('All(전체 인원) 그룹은 삭제할 수 없습니다.');
-            if(confirm('이 그룹을 삭제하시겠습니까?')) {
+            if (targetGroup && (targetGroup.name === 'All(전체 인원)' || targetGroup.name === 'All')) return showToast('해당 그룹은 삭제 불가입니다.', 'error');
+            if (await showConfirm('이 그룹을 삭제하시겠습니까?')) {
                 remove(ref(db, 's2_team_groups/' + id));
                 if(editingGroupId === id) cancelEditGroup();
+                showToast('그룹이 삭제되었습니다.', 'success');
             }
         };
 
@@ -1596,6 +1883,7 @@
         window.openEventModal = function() {
             document.getElementById('modal-title').innerText = "일정 등록"; document.getElementById('event-id').value = "";
             document.getElementById('f-title').value = ""; document.getElementById('f-comment').value = "";
+            document.getElementById('f-category').value = "일반 업무";
             
             renderUrlFields([{ title: '', url: '' }]);
 
@@ -1603,7 +1891,7 @@
             if (selectEl.options.length > 0) selectEl.selectedIndex = 0;
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('f-start').value = today; document.getElementById('f-end').value = today;
-            onEntityChange();
+            onStartDateChange();
             document.getElementById('modal-delete-btn').classList.add('hidden'); document.getElementById('event-modal').classList.remove('hidden');
         };
 
@@ -1613,13 +1901,14 @@
             e.preventDefault();
             const id = document.getElementById('event-id').value; 
             const memberSelect = document.getElementById('f-member');
-            if(memberSelect.value === "") return alert('담당 주체를 선택해주세요.');
+            if(memberSelect.value === "") return showToast('담당 주체를 선택해주세요.', 'error');
             
             const member = memberSelect.value; 
+            const category = document.getElementById('f-category').value;
             const title = document.getElementById('f-title').value;
             
             let color = '#059669';
-            if (isLeaveEvent(title)) { 
+            if (category === '휴가') { 
                 color = '#475569'; 
             } else {
                 const matchedGroup = teamGroups.find(g => g.name === member);
@@ -1632,8 +1921,7 @@
 
             const comment = document.getElementById('f-comment').value; 
             
-            // 🌟 입력된 [제목|주소] 형태로 조합하여 줄바꿈(\n)으로 저장
-            const rows = document.querySelectorAll('#url-fields-container .flex');
+            const rows = document.querySelectorAll('#url-fields-container .flex-col');
             const urlLines = [];
             rows.forEach(row => {
                 const tVal = row.querySelector('.url-title-input').value.trim();
@@ -1649,31 +1937,30 @@
             const endInputStr = document.getElementById('f-end').value;
             const subMembers = Array.from(document.querySelectorAll('.sub-member-cb:checked')).map(cb => cb.value);
 
+            const [sY, sM, sD] = startStr.split('-').map(Number);
+            let currDate = new Date(sY, sM - 1, sD);
+            const [eY, eM, eD] = endInputStr.split('-').map(Number);
+            let lastDate = new Date(eY, eM - 1, eD);
+
             if (id) {
-                let endObj = new Date(endInputStr);
-                endObj.setDate(endObj.getDate() + 1);
+                let endObj = new Date(eY, eM - 1, eD + 1);
                 const end = endObj.toISOString().split('T')[0];
 
-                const eventData = { member, title, comment, url, start: startStr, end, color, subMembers };
+                const eventData = { member, title, category, comment, url, start: startStr, end, color, subMembers };
+                if (rawCalendarData && rawCalendarData[id] && rawCalendarData[id].groupId) {
+                    eventData.groupId = rawCalendarData[id].groupId;
+                }
+                
                 update(ref(db, 's2_team_calendar/' + id), eventData).then(() => {
-                    if (rawCalendarData && rawCalendarData[id]) { 
-                        rawCalendarData[id] = eventData; 
-                        renderCalendarData(); 
-                        if (lockedEventId === id) {
-                            const updatedEvt = calendar.getEventById(id);
-                            if (updatedEvt) renderPreviewBox(updatedEvt);
-                        }
-                    }
+                    showToast('일정이 수정되었습니다.', 'success');
                 });
                 closeEventModal();
                 return;
             }
-
-            let currDate = new Date(startStr);
-            let lastDate = new Date(endInputStr);
             
             let createdCount = 0;
             const updates = {};
+            const groupId = 'grp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
 
             while (currDate <= lastDate) {
                 const year = currDate.getFullYear();
@@ -1686,16 +1973,16 @@
                 const isHoliday = holidayDatesSet.has(dateString);
 
                 if (!isWeekend && !isHoliday) {
-                    let nextDayObj = new Date(currDate);
-                    nextDayObj.setDate(nextDayObj.getDate() + 1);
+                    let nextDayObj = new Date(year, currDate.getMonth(), currDate.getDate() + 1);
                     const nextDayStr = nextDayObj.toISOString().split('T')[0];
 
                     const newRef = push(calendarRef);
                     updates[newRef.key] = {
-                        member, title, comment, url,
+                        member, title, category, comment, url,
                         start: dateString,
                         end: nextDayStr,
-                        color, subMembers
+                        color, subMembers,
+                        groupId: groupId
                     };
                     createdCount++;
                 }
@@ -1704,26 +1991,49 @@
             }
 
             if (createdCount === 0) {
-                return alert('선택하신 기간 내에 평일(근무일)이 없어 생성된 일정이 없습니다.');
+                return showToast('기간 내 평일(근무일)이 없어 생성 불가합니다.', 'error');
             }
 
             update(calendarRef, updates).then(() => {
+                showToast(`총 ${createdCount}건의 평일 일정이 등록되었습니다.`, 'success');
                 closeEventModal();
             }).catch(err => {
-                alert('일정 등록 중 오류 발생: ' + err.message);
+                showToast('일정 등록 중 오류 발생', 'error');
             });
         };
 
-        window.handleEventDelete = function() {
+        window.handleEventDelete = async function() {
             const id = document.getElementById('event-id').value;
-            if (id && confirm('정말 이 일정을 삭제하시겠습니까?')) {
-                remove(ref(db, 's2_team_calendar/' + id));
-                if (rawCalendarData) delete rawCalendarData[id];
-                const eventToRemove = calendar.getEventById(id); 
-                if (eventToRemove) eventToRemove.remove();
-                if (lockedEventId === id) unlockPreview();
-                closeEventModal();
+            if (!id) return;
+            
+            closeEventModal();
+            await new Promise(r => setTimeout(r, 100));
+
+            const confirmed = await showConfirm('이 일정을 삭제하시겠습니까?');
+            if (!confirmed) return;
+
+            await new Promise(r => setTimeout(r, 100));
+
+            const evtData = rawCalendarData ? rawCalendarData[id] : null;
+            let deleteKeys = [id];
+            
+            if (evtData && evtData.groupId) {
+                const siblings = Object.keys(rawCalendarData).filter(k => rawCalendarData[k].groupId === evtData.groupId && k !== id);
+                if (siblings.length > 0) {
+                    const deleteGroupConfirmed = await showConfirm(`이 일정은 다중일(연속)로 등록된 일정입니다.\n이어진 나머지 ${siblings.length}개 일정도 함께 삭제하시겠습니까?\n\n* [확인]: 연결된 일정 모두 삭제\n* [취소]: 현재 선택한 일정만 삭제`);
+                    if (deleteGroupConfirmed) {
+                        deleteKeys = deleteKeys.concat(siblings);
+                    }
+                }
             }
+            
+            const updates = {};
+            deleteKeys.forEach(k => updates['s2_team_calendar/' + k] = null);
+            
+            update(ref(db), updates).then(() => {
+                showToast('일정이 삭제되었습니다.', 'success');
+                if (lockedEventId && deleteKeys.includes(lockedEventId)) unlockPreview();
+            });
         };
     </script>
 </body>
