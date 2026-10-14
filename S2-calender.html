@@ -63,11 +63,14 @@
     <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2.5 pointer-events-none"></div>
 
     <!-- 커스텀 우클릭 메뉴 -->
-    <div id="custom-context-menu" class="fixed bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 w-36 z-[9999] hidden text-xs font-semibold text-slate-700">
-        <button onclick="handleContextEdit()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center space-x-2 text-slate-700">
+    <div id="custom-context-menu" class="fixed bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 w-40 z-[9999] hidden text-xs font-semibold text-slate-700">
+        <button id="ctx-add-btn" onclick="handleContextAdd()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center space-x-2 text-emerald-600 hidden">
+            <i class="fa-solid fa-plus"></i><span>일정 추가</span>
+        </button>
+        <button id="ctx-edit-btn" onclick="handleContextEdit()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center space-x-2 text-slate-700 hidden">
             <i class="fa-solid fa-pen text-emerald-600"></i><span>일정 수정</span>
         </button>
-        <button onclick="handleContextDelete()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center space-x-2 text-rose-600">
+        <button id="ctx-delete-btn" onclick="handleContextDelete()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 flex items-center space-x-2 text-rose-600 hidden">
             <i class="fa-solid fa-trash"></i><span>일정 삭제</span>
         </button>
     </div>
@@ -233,7 +236,6 @@
         </div>
     </header>
 
-    <!-- 🌟 수정된 부분: 달력(왼쪽)과 미리보기(오른쪽)의 레이아웃 순서 변경 -->
     <main class="flex-1 max-w-[120rem] w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col lg:flex-row items-center lg:items-stretch justify-center gap-6 overflow-hidden">
         <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex-1 w-full max-w-5xl h-full flex flex-col overflow-hidden relative">
             <div id="calendar" class="h-full"></div>
@@ -506,6 +508,7 @@
         let lockTimer = null;
         let lockTimeoutMinutes = parseInt(localStorage.getItem('s2_lock_timeout_min') || '5', 10);
         let contextTargetEventId = null;
+        let contextTargetDateStr = null;
 
         const offsetRef = ref(db, '.info/serverTimeOffset');
         onValue(offsetRef, (snap) => {
@@ -789,7 +792,8 @@
                                 if (isLeaveEvent(tempItem)) {
                                     individualEvents.push({
                                         member: name, title: title, start: dateStr, end: endDateStr,
-                                        category: '휴가', color: '#475569', comment: '엑셀 휴가 등록', url: '', subMembers: []
+                                        category: '휴가', color: '#475569', comment: '엑셀 휴가 등록', url: '', subMembers: [],
+                                        groupId: 'grp_excel_' + Math.random().toString(36).substr(2, 5)
                                     });
                                 } else {
                                     const key = `${dateStr}_${title}_${part}`; 
@@ -808,6 +812,7 @@
 
                 const updates = {};
                 let processedCount = 0;
+                const batchGroupId = 'grp_' + Date.now();
 
                 Object.values(groupedEvents).forEach(evt => {
                     const membersArr = Array.from(evt.members);
@@ -824,7 +829,8 @@
                     const sig = `${evt.start}_${assignMember}_${evt.title}`.trim();
                     const eventData = {
                         member: assignMember, title: evt.title, start: evt.start, end: evt.end,
-                        category: '일반 업무', color: evt.color, comment: commentTxt, url: "", subMembers: subMembers
+                        category: '일반 업무', color: evt.color, comment: commentTxt, url: "", subMembers: subMembers,
+                        groupId: batchGroupId
                     };
 
                     let targetKey = existingEventMap.get(sig);
@@ -1036,15 +1042,31 @@
                     startLockTimer();
                 },
 
+                // 🌟 [수정된 부분] eventDidMount 내에서 더블클릭 이벤트 리스너를 추가
                 eventDidMount: function(info) {
                     if (info.event.source && info.event.source.id === 'korea-holidays') return;
+                    
                     info.el.addEventListener('contextmenu', function(e) {
                         e.preventDefault();
+                        e.stopPropagation();
                         contextTargetEventId = info.event.id;
+                        contextTargetDateStr = info.event.startStr.split('T')[0];
+
                         const menu = document.getElementById('custom-context-menu');
+                        document.getElementById('ctx-add-btn').classList.remove('hidden');
+                        document.getElementById('ctx-edit-btn').classList.remove('hidden');
+                        document.getElementById('ctx-delete-btn').classList.remove('hidden');
+
                         menu.style.top = `${e.pageY}px`;
                         menu.style.left = `${e.pageX}px`;
                         menu.classList.remove('hidden');
+                    });
+
+                    // 🌟 일정 개별 블록에 더블 클릭 이벤트 바인딩
+                    info.el.addEventListener('dblclick', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation(); // 배경 더블클릭 이벤트(일정 추가) 전파 방지
+                        editEventFromPreview(info.event.id);
                     });
                 },
 
@@ -1063,9 +1085,30 @@
             });
             calendar.render();
 
+            calendarEl.addEventListener('contextmenu', function(e) {
+                const dayCell = e.target.closest('.fc-daygrid-day');
+                if (dayCell && !e.target.closest('.fc-event')) {
+                    e.preventDefault();
+                    const dateStr = dayCell.getAttribute('data-date');
+                    if (dateStr) {
+                        contextTargetEventId = null;
+                        contextTargetDateStr = dateStr;
+
+                        const menu = document.getElementById('custom-context-menu');
+                        document.getElementById('ctx-add-btn').classList.remove('hidden');
+                        document.getElementById('ctx-edit-btn').classList.add('hidden');
+                        document.getElementById('ctx-delete-btn').classList.add('hidden');
+
+                        menu.style.top = `${e.pageY}px`;
+                        menu.style.left = `${e.pageX}px`;
+                        menu.classList.remove('hidden');
+                    }
+                }
+            });
+
             calendarEl.addEventListener('dblclick', function(e) {
                 const dayCell = e.target.closest('.fc-daygrid-day');
-                if (dayCell) {
+                if (dayCell && !e.target.closest('.fc-event')) {
                     const dateStr = dayCell.getAttribute('data-date');
                     if (dateStr) {
                         openEventModal();
@@ -1110,6 +1153,16 @@
                 }, 300);
             });
         });
+
+        window.handleContextAdd = function() {
+            document.getElementById('custom-context-menu').classList.add('hidden');
+            openEventModal();
+            if (contextTargetDateStr) {
+                document.getElementById('f-start').value = contextTargetDateStr;
+                document.getElementById('f-end').value = contextTargetDateStr;
+                onStartDateChange();
+            }
+        };
 
         window.handleContextEdit = function() {
             document.getElementById('custom-context-menu').classList.add('hidden');
@@ -1168,12 +1221,63 @@
             return u;
         }
 
+        function getMemberLeavesForDateRange(startDateStr, endDateStr, memberName) {
+            if (!rawCalendarData) return [];
+            let leaves = [];
+            const [sY, sM, sD] = startDateStr.split('-').map(Number);
+            const sDate = new Date(sY, sM - 1, sD);
+            const [eY, eM, eD] = endDateStr.split('-').map(Number);
+            const eDate = new Date(eY, eM - 1, eD);
+
+            Object.values(rawCalendarData).forEach(item => {
+                if (item.member === memberName && isLeaveEvent(item)) {
+                    const [evSY, evSM, evSD] = item.start.split('-').map(Number);
+                    const evStart = new Date(evSY, evSM - 1, evSD);
+                    const evEndRaw = item.end ? item.end : item.start;
+                    const [evEY, evEM, evED] = evEndRaw.split('-').map(Number);
+                    const evEnd = new Date(evEY, evEM - 1, evED);
+                    evEnd.setDate(evEnd.getDate() - 1);
+
+                    if (sDate <= evEnd && eDate >= evStart) {
+                        leaves.push(item.title);
+                    }
+                }
+            });
+            return leaves;
+        }
+
+        function getMemberGroupEventsForDateRange(startDateStr, endDateStr, memberName) {
+            if (!rawCalendarData) return [];
+            let groupEvents = [];
+            const [sY, sM, sD] = startDateStr.split('-').map(Number);
+            const sDate = new Date(sY, sM - 1, sD);
+            const [eY, eM, eD] = endDateStr.split('-').map(Number);
+            const eDate = new Date(eY, eM - 1, eD);
+
+            Object.values(rawCalendarData).forEach(item => {
+                const isGrp = teamGroups.some(g => g.name === item.member);
+                if (isGrp && item.subMembers && item.subMembers.includes(memberName)) {
+                    const [evSY, evSM, evSD] = item.start.split('-').map(Number);
+                    const evStart = new Date(evSY, evSM - 1, evSD);
+                    const evEndRaw = item.end ? item.end : item.start;
+                    const [evEY, evEM, evED] = evEndRaw.split('-').map(Number);
+                    const evEnd = new Date(evEY, evEM - 1, evED);
+                    evEnd.setDate(evEnd.getDate() - 1);
+
+                    if (sDate <= evEnd && eDate >= evStart) {
+                        groupEvents.push({ title: item.title, groupName: item.member });
+                    }
+                }
+            });
+            return groupEvents;
+        }
+
         function renderPreviewBox(evt) {
             const previewContainer = document.getElementById('preview-container');
             if (!previewContainer) return;
 
             const isHoliday = (evt.source && evt.source.id === 'korea-holidays');
-            const title = evt.extendedProps.rawTitle || evt.title;
+            let title = evt.extendedProps.rawTitle || evt.title;
             const category = evt.extendedProps.category || '일반 업무';
             const member = evt.extendedProps.member || (isHoliday ? '공휴일' : '강인현');
             const startStr = evt.startStr.split('T')[0];
@@ -1186,14 +1290,35 @@
                 if (endStr < startStr) endStr = startStr;
             }
 
+            const isGroup = teamGroups.some(g => g.name === member);
+            const isLeave = isLeaveEvent({ category, title });
+
+            let combinedTitle = title;
+            let groupAssociationHtml = '';
+            if (!isGroup && !isHoliday && isLeave) {
+                const associatedGroups = getMemberGroupEventsForDateRange(startStr, endStr, member);
+                if (associatedGroups.length > 0) {
+                    const groupNames = associatedGroups.map(g => `${g.groupName}의 [${g.title}]`).join(', ');
+                    combinedTitle = `${title} + (${groupNames})`;
+                    groupAssociationHtml = `<div class="mt-2 pt-2 border-t border-slate-100"><span class="font-semibold text-slate-500 block mb-1">관련 그룹 일정</span><p class="text-slate-700 text-[11px]">${groupNames}</p></div>`;
+                }
+            }
+
             const comment = evt.extendedProps.comment || '등록된 코멘트가 없습니다.';
             const urlData = evt.extendedProps.url || '';
             const subMembers = evt.extendedProps.subMembers || [];
-            const isGroup = teamGroups.some(g => g.name === member);
 
             let subListHtml = '';
             if (isGroup && subMembers.length > 0) {
-                subListHtml = `<div class="mt-2 pt-2 border-t border-slate-100"><span class="font-semibold text-slate-500 block mb-1">참여 인원 (${subMembers.length}명)</span><p class="text-slate-700 text-[11px] leading-relaxed">${subMembers.join(', ')}</p></div>`;
+                const formattedSubMembers = subMembers.map(mName => {
+                    const leaves = getMemberLeavesForDateRange(startStr, endStr, mName);
+                    if (leaves.length > 0) {
+                        return `${mName} (${[...new Set(leaves)].join(', ')})`;
+                    }
+                    return mName;
+                });
+
+                subListHtml = `<div class="mt-2 pt-2 border-t border-slate-100"><span class="font-semibold text-slate-500 block mb-1">참여 인원 (${subMembers.length}명)</span><p class="text-slate-700 text-[11px] leading-relaxed">${formattedSubMembers.join(', ')}</p></div>`;
             } else if (!isGroup && !isHoliday) {
                 subListHtml = `<div class="mt-2 pt-2 border-t border-slate-100"><span class="font-semibold text-slate-500 block mb-1">담당자</span><p class="text-slate-700 text-[11px]">${member}</p></div>`;
             }
@@ -1264,9 +1389,10 @@
                         ${badgeHtml}
                         <span class="text-[10px] text-slate-400 shrink-0 ml-2">${startStr}${startStr !== endStr ? ' ~ ' + endStr : ''}</span>
                     </div>
-                    <h3 class="font-bold text-slate-900 text-sm leading-snug">${title}</h3>
+                    <h3 class="font-bold text-slate-900 text-sm leading-snug">${combinedTitle}</h3>
                     <p class="text-slate-600 text-[11px] bg-slate-50 p-2.5 rounded-lg border border-slate-100 whitespace-pre-line">${comment}</p>
                     ${subListHtml}
+                    ${groupAssociationHtml}
                     ${urlHtml}
                 </div>
                 ${!isHoliday ? `
@@ -1496,13 +1622,15 @@
                     Object.keys(rawCalendarData).forEach(key => {
                         if (key === currentEditingId) return;
                         const evt = rawCalendarData[key];
-                        
+                        if (evt.member === selectedVal) return; 
+
                         const [evSY, evSM, evSD] = evt.start.split('-').map(Number);
                         const evStart = new Date(evSY, evSM - 1, evSD);
                         const evEndRaw = evt.end ? evt.end : evt.start;
                         const [evEY, evEM, evED] = evEndRaw.split('-').map(Number);
                         const evEnd = new Date(evEY, evEM - 1, evED);
-                        
+                        evEnd.setDate(evEnd.getDate() - 1);
+
                         if (sDate <= evEnd && eDate >= evStart) {
                             if (teamMembers.some(m => m.name === evt.member)) membersWithConflict.add(evt.member);
                             if (evt.subMembers && Array.isArray(evt.subMembers)) {
@@ -1895,7 +2023,8 @@
 
         window.closeEventModal = function() { document.getElementById('event-modal').classList.add('hidden'); };
 
-        window.handleEventSubmit = function(e) {
+        // 🌟 [최종 수정] 단일 일정을 연속 일정으로 확장/변경할 때 기존 데이터 손실 없이 안전하게 승계 및 저장
+        window.handleEventSubmit = async function(e) {
             e.preventDefault();
             const id = document.getElementById('event-id').value; 
             const memberSelect = document.getElementById('f-member');
@@ -1941,13 +2070,65 @@
             let lastDate = new Date(eY, eM - 1, eD);
 
             if (id) {
+                const existingEvt = rawCalendarData ? rawCalendarData[id] : null;
+                const existingGroupId = existingEvt && existingEvt.groupId ? existingEvt.groupId : ('grp_' + Date.now());
+
+                let siblingKeys = [];
+                if (existingEvt && existingEvt.groupId && rawCalendarData) {
+                    siblingKeys = Object.keys(rawCalendarData).filter(k => rawCalendarData[k].groupId === existingEvt.groupId);
+                }
+
+                const origStart = existingEvt ? existingEvt.start.split('T')[0] : startStr;
+                const origEndRaw = existingEvt && existingEvt.end ? new Date(new Date(existingEvt.end).getTime() - 86400000).toISOString().split('T')[0] : origStart;
+                const isExtended = (startStr !== origStart) || (endInputStr !== origEndRaw);
+
+                if (siblingKeys.length > 1 || isExtended) {
+                    const updates = {};
+                    if (siblingKeys.length > 1) {
+                        siblingKeys.forEach(k => { updates['s2_team_calendar/' + k] = null; });
+                    } else {
+                        updates['s2_team_calendar/' + id] = null;
+                    }
+
+                    while (currDate <= lastDate) {
+                        const year = currDate.getFullYear();
+                        const month = String(currDate.getMonth() + 1).padStart(2, '0');
+                        const day = String(currDate.getDate()).padStart(2, '0');
+                        const dateString = `${year}-${month}-${day}`;
+
+                        const dayOfWeek = currDate.getDay();
+                        const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+                        const isHoliday = holidayDatesSet.has(dateString);
+
+                        if (!isWeekend && !isHoliday) {
+                            let nextDayObj = new Date(year, currDate.getMonth(), currDate.getDate() + 1);
+                            const nextDayStr = nextDayObj.toISOString().split('T')[0];
+
+                            const newRef = push(calendarRef);
+                            // 🌟 [수정된 부분] 저장 경로에 's2_team_calendar/' 를 명시하여 DB 최상단으로 빠지는 현상 방지
+                            updates['s2_team_calendar/' + newRef.key] = {
+                                member, title, category, comment, url,
+                                start: dateString,
+                                end: nextDayStr,
+                                color, subMembers,
+                                groupId: existingGroupId
+                            };
+                        }
+                        currDate.setDate(currDate.getDate() + 1);
+                    }
+
+                    update(ref(db), updates).then(() => {
+                        showToast('일정 내용이 유지되며 연속 일정으로 확장/수정되었습니다.', 'success');
+                        closeEventModal();
+                    });
+                    return;
+                }
+
                 let endObj = new Date(eY, eM - 1, eD + 1);
                 const end = endObj.toISOString().split('T')[0];
 
                 const eventData = { member, title, category, comment, url, start: startStr, end, color, subMembers };
-                if (rawCalendarData && rawCalendarData[id] && rawCalendarData[id].groupId) {
-                    eventData.groupId = rawCalendarData[id].groupId;
-                }
+                if (existingGroupId) eventData.groupId = existingGroupId;
                 
                 update(ref(db, 's2_team_calendar/' + id), eventData).then(() => {
                     showToast('일정이 수정되었습니다.', 'success');
