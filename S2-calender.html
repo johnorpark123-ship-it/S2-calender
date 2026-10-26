@@ -60,6 +60,30 @@
 </head>
 <body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased selection:bg-emerald-600 selection:text-white relative">
 
+    <!-- 좌측 슬라이드 깃허브 프로젝트 메뉴 (디자인 개선 및 손잡이 추가) -->
+    <div class="fixed left-0 top-0 h-full z-[99999] flex transition-transform duration-300 -translate-x-64 hover:translate-x-0">
+        <!-- 메인 패널 (화이트 테마) -->
+        <div class="w-64 bg-white border-r border-slate-200 h-full shadow-[4px_0_24px_rgba(0,0,0,0.08)] flex flex-col">
+            <div class="p-4 bg-slate-50 border-b border-slate-200 font-bold flex items-center space-x-2 text-slate-800 text-sm">
+                <i class="fa-brands fa-github text-emerald-600 text-lg"></i>
+                <span>S2팀 프로젝트 목록</span>
+            </div>
+            <div id="github-repo-list" class="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
+                <div class="p-4 text-center text-xs text-slate-500 mt-10">
+                    <i class="fa-solid fa-circle-notch fa-spin text-xl mb-2 text-emerald-600"></i><br>프로젝트를 불러오는 중...
+                </div>
+            </div>
+        </div>
+        
+        <!-- 우측 튀어나온 손잡이 (Handle) -->
+        <div class="flex items-center">
+            <div class="bg-white border border-l-0 border-slate-200 shadow-[4px_0_15px_rgba(0,0,0,0.05)] rounded-r-xl px-1.5 py-4 cursor-pointer text-slate-400 hover:text-emerald-600 transition flex flex-col items-center justify-center">
+                <i class="fa-brands fa-github text-lg mb-1"></i>
+                <i class="fa-solid fa-chevron-right text-[10px] animate-pulse"></i>
+            </div>
+        </div>
+    </div>
+
     <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-2.5 pointer-events-none"></div>
 
     <!-- 커스텀 우클릭 메뉴 -->
@@ -123,7 +147,7 @@
         </div>
     </div>
 
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm shrink-0">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm shrink-0 pl-8">
         <div class="max-w-[120rem] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="bg-emerald-600 text-white p-2.5 rounded-xl shadow-md flex items-center justify-center">
@@ -165,11 +189,6 @@
                             <i class="fa-solid fa-xmark"></i>
                         </button>
                     </div>
-
-                    <a href="https://jeshu111.github.io/zesq-s2-onboarding/" class="bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5" title="S2팀 온보딩 포털">
-                        <i class="fa-solid fa-house-laptop"></i>
-                        <span class="hidden sm:inline">온보딩 포털</span>
-                    </a>
 
                     <div class="relative" id="filter-container">
                         <button onclick="toggleFilterDropdown(event)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 transition flex items-center space-x-1.5">
@@ -322,8 +341,13 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">담당 주체</label>
-                        <select id="f-member" onchange="onEntityChange()" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer">
-                        </select>
+                        <!-- 검색 가능한 커스텀 드롭다운으로 변경 -->
+                        <div class="relative group">
+                            <input type="text" id="f-member-search" placeholder="검색 및 선택" required readonly class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer" onclick="document.getElementById('f-member-list').classList.toggle('hidden')" oninput="filterMemberDropdown()">
+                            <input type="hidden" id="f-member" onchange="onEntityChange()" required>
+                            <div id="f-member-list" class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto hidden">
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -514,6 +538,31 @@
         onValue(offsetRef, (snap) => {
             window.serverTimeOffset = snap.val() || 0;
         });
+
+        // 🌟 화이트 테마가 적용된 GitHub 프로젝트 로딩 함수
+        async function fetchGitHubRepos() {
+            const listContainer = document.getElementById('github-repo-list');
+            try {
+                const response = await fetch('https://api.github.com/users/johnorpark123-ship-it/repos?sort=updated');
+                const repos = await response.json();
+                
+                listContainer.innerHTML = ''; 
+                
+                repos.forEach(repo => {
+                    const a = document.createElement('a');
+                    a.href = `https://johnorpark123-ship-it.github.io/${repo.name}/`;
+                    a.target = '_blank';
+                    a.className = 'flex items-center space-x-2 p-2.5 hover:bg-slate-100 rounded-lg transition text-sm text-slate-700 font-medium';
+                    a.innerHTML = `
+                        <img src="https://github.githubassets.com/favicons/favicon.svg" class="w-4 h-4 rounded-full bg-white p-0.5 shadow-sm border border-slate-200">
+                        <span class="truncate">${repo.name}</span>
+                    `;
+                    listContainer.appendChild(a);
+                });
+            } catch (error) {
+                listContainer.innerHTML = '<div class="p-2 text-xs text-rose-400 text-center">목록을 불러오지 못했습니다.</div>';
+            }
+        }
 
         window.showToast = function(msg, type = 'info') {
             const container = document.getElementById('toast-container');
@@ -896,6 +945,12 @@
                 dropdown.classList.add('hidden');
             }
             document.getElementById('custom-context-menu').classList.add('hidden');
+
+            const memberSearch = document.getElementById('f-member-search');
+            const memberList = document.getElementById('f-member-list');
+            if (memberSearch && memberList && event.target !== memberSearch && !memberList.contains(event.target)) {
+                memberList.classList.add('hidden');
+            }
         });
 
         window.toggleFilterDropdown = function(event) {
@@ -905,6 +960,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             startLiveClock();
+            fetchGitHubRepos(); 
 
             onValue(groupsRef, (snapshot) => {
                 const data = snapshot.val();
@@ -1042,7 +1098,6 @@
                     startLockTimer();
                 },
 
-                // 🌟 [수정된 부분] eventDidMount 내에서 더블클릭 이벤트 리스너를 추가
                 eventDidMount: function(info) {
                     if (info.event.source && info.event.source.id === 'korea-holidays') return;
                     
@@ -1062,10 +1117,9 @@
                         menu.classList.remove('hidden');
                     });
 
-                    // 🌟 일정 개별 블록에 더블 클릭 이벤트 바인딩
                     info.el.addEventListener('dblclick', function(e) {
                         e.preventDefault();
-                        e.stopPropagation(); // 배경 더블클릭 이벤트(일정 추가) 전파 방지
+                        e.stopPropagation(); 
                         editEventFromPreview(info.event.id);
                     });
                 },
@@ -1445,16 +1499,8 @@
             }
 
             const assignedEntity = evt.extendedProps.member || '강인현';
-            const memberSelect = document.getElementById('f-member');
-            
-            if(!Array.from(memberSelect.options).some(opt => opt.value === assignedEntity)) {
-                const tempOpt = document.createElement('option');
-                tempOpt.value = assignedEntity;
-                tempOpt.dataset.color = evt.backgroundColor;
-                tempOpt.textContent = assignedEntity + " (삭제됨)";
-                memberSelect.appendChild(tempOpt);
-            }
-            memberSelect.value = assignedEntity;
+            document.getElementById('f-member-search').value = assignedEntity;
+            document.getElementById('f-member').value = assignedEntity;
             
             document.getElementById('f-start').value = evt.startStr.split('T')[0];
             
@@ -1574,9 +1620,57 @@
             titleInput.value = radioElem.value;
         };
 
+        function renderMemberSelect() {
+            const listContainer = document.getElementById('f-member-list');
+            listContainer.innerHTML = '';
+            
+            const allEntities = [];
+            
+            const sortedGroups = [...teamGroups].sort((a, b) => {
+                if (a.name === 'All(전체 인원)' || a.name === 'All') return -1; 
+                if (b.name === 'All(전체 인원)' || b.name === 'All') return 1;
+                return a.name.localeCompare(b.name, 'ko');
+            });
+            sortedGroups.forEach(g => allEntities.push({ name: g.name, color: g.color, type: '그룹' }));
+            
+            const activeMembers = teamMembers.filter(m => !m.isResigned);
+            activeMembers.forEach(m => allEntities.push({ name: m.name, color: '#059669', type: '개인' }));
+
+            allEntities.forEach(entity => {
+                const div = document.createElement('div');
+                div.className = 'px-3 py-2 text-sm text-slate-700 hover:bg-emerald-50 cursor-pointer member-option border-b border-slate-50 last:border-0';
+                div.dataset.value = entity.name;
+                div.dataset.color = entity.color;
+                div.innerHTML = `<span class="text-[10px] text-slate-400 mr-1.5">[${entity.type}]</span>${entity.name}`;
+                div.onclick = function() {
+                    document.getElementById('f-member-search').value = entity.name;
+                    
+                    const hiddenInput = document.getElementById('f-member');
+                    hiddenInput.value = entity.name;
+                    const event = new Event('change');
+                    hiddenInput.dispatchEvent(event);
+                    
+                    document.getElementById('f-member-list').classList.add('hidden');
+                    onEntityChange();
+                };
+                listContainer.appendChild(div);
+            });
+            onEntityChange();
+        }
+
+        window.filterMemberDropdown = function() {
+            const keyword = document.getElementById('f-member-search').value.toLowerCase();
+            const options = document.querySelectorAll('.member-option');
+            document.getElementById('f-member-list').classList.remove('hidden');
+            
+            options.forEach(opt => {
+                const text = opt.innerText.toLowerCase();
+                opt.style.display = text.includes(keyword) ? 'block' : 'none';
+            });
+        };
+
         window.onEntityChange = function() {
-            const selectEl = document.getElementById('f-member');
-            const selectedVal = selectEl.value;
+            const selectedVal = document.getElementById('f-member').value;
             const categoryVal = document.getElementById('f-category').value;
             const subSection = document.getElementById('sub-members-section');
             const container = document.getElementById('sub-members-checkboxes');
@@ -1590,19 +1684,6 @@
             }
 
             container.innerHTML = '';
-
-            if (selectEl.options[selectEl.selectedIndex]) {
-                if (categoryVal === '휴가') {
-                    selectEl.options[selectEl.selectedIndex].dataset.color = '#475569';
-                } else {
-                    const matchedGroup = teamGroups.find(g => g.name === selectedVal);
-                    if (matchedGroup) {
-                        selectEl.options[selectEl.selectedIndex].dataset.color = matchedGroup.color;
-                    } else {
-                        selectEl.options[selectEl.selectedIndex].dataset.color = '#059669';
-                    }
-                }
-            }
 
             const matchedGroup = teamGroups.find(g => g.name === selectedVal);
             if (matchedGroup && matchedGroup.members && matchedGroup.members.length > 0) {
@@ -1816,44 +1897,6 @@
             arrow.classList.toggle('fa-chevron-down'); arrow.classList.toggle('fa-chevron-up');
         };
 
-        function renderMemberSelect() {
-            const select = document.getElementById('f-member');
-            select.innerHTML = '';
-            
-            const defaultOpt = document.createElement('option');
-            defaultOpt.value = ""; defaultOpt.disabled = true; defaultOpt.selected = true; defaultOpt.textContent = "담당 주체 선택";
-            select.appendChild(defaultOpt);
-
-            if (teamGroups.length > 0) {
-                const optGrp = document.createElement('optgroup');
-                optGrp.label = "📂 묶음 그룹";
-                const sortedGroups = [...teamGroups].sort((a, b) => {
-                    if (a.name === 'All(전체 인원)' || a.name === 'All') return -1; 
-                    if (b.name === 'All(전체 인원)' || b.name === 'All') return 1;
-                    return a.name.localeCompare(b.name, 'ko');
-                });
-                sortedGroups.forEach(g => {
-                    const opt = document.createElement('option');
-                    opt.value = g.name; opt.dataset.color = g.color; opt.textContent = g.name;
-                    optGrp.appendChild(opt);
-                });
-                select.appendChild(optGrp);
-            }
-
-            const activeMembers = teamMembers.filter(m => !m.isResigned);
-            if (activeMembers.length > 0) {
-                const optMem = document.createElement('optgroup');
-                optMem.label = "👤 개별 팀원";
-                activeMembers.forEach(m => {
-                    const opt = document.createElement('option');
-                    opt.value = m.name; opt.dataset.color = '#059669'; opt.textContent = m.name;
-                    optMem.appendChild(opt);
-                });
-                select.appendChild(optMem);
-            }
-            onEntityChange();
-        }
-
         function renderMemberList() {
             const container = document.getElementById('member-list-container');
             const resignedContainer = document.getElementById('resigned-list-container');
@@ -2013,8 +2056,9 @@
             
             renderUrlFields([{ title: '', url: '' }]);
 
-            const selectEl = document.getElementById('f-member');
-            if (selectEl.options.length > 0) selectEl.selectedIndex = 0;
+            document.getElementById('f-member-search').value = "";
+            document.getElementById('f-member').value = "";
+            
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('f-start').value = today; document.getElementById('f-end').value = today;
             onStartDateChange();
@@ -2023,14 +2067,13 @@
 
         window.closeEventModal = function() { document.getElementById('event-modal').classList.add('hidden'); };
 
-        // 🌟 [최종 수정] 단일 일정을 연속 일정으로 확장/변경할 때 기존 데이터 손실 없이 안전하게 승계 및 저장
         window.handleEventSubmit = async function(e) {
             e.preventDefault();
             const id = document.getElementById('event-id').value; 
-            const memberSelect = document.getElementById('f-member');
-            if(memberSelect.value === "") return showToast('담당 주체를 선택해주세요.', 'error');
             
-            const member = memberSelect.value; 
+            const member = document.getElementById('f-member').value;
+            if(!member) return showToast('담당 주체를 검색 후 선택해주세요.', 'error');
+            
             const category = document.getElementById('f-category').value;
             const title = document.getElementById('f-title').value;
             
@@ -2041,8 +2084,6 @@
                 const matchedGroup = teamGroups.find(g => g.name === member);
                 if (matchedGroup) { 
                     color = matchedGroup.color; 
-                } else if (memberSelect.options[memberSelect.selectedIndex] && memberSelect.options[memberSelect.selectedIndex].dataset.color) { 
-                    color = memberSelect.options[memberSelect.selectedIndex].dataset.color; 
                 }
             }
 
@@ -2105,7 +2146,6 @@
                             const nextDayStr = nextDayObj.toISOString().split('T')[0];
 
                             const newRef = push(calendarRef);
-                            // 🌟 [수정된 부분] 저장 경로에 's2_team_calendar/' 를 명시하여 DB 최상단으로 빠지는 현상 방지
                             updates['s2_team_calendar/' + newRef.key] = {
                                 member, title, category, comment, url,
                                 start: dateString,
