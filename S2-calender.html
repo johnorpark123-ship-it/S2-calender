@@ -60,8 +60,8 @@
 </head>
 <body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased selection:bg-emerald-600 selection:text-white relative">
 
-    <!-- 좌측 슬라이드 깃허브 프로젝트 메뉴 (디자인 개선 및 손잡이 추가) -->
-    <div class="fixed left-0 top-0 h-full z-[99999] flex transition-transform duration-300 -translate-x-64 hover:translate-x-0">
+    <!-- 🌟 좌측 슬라이드 깃허브 프로젝트 메뉴 -->
+    <div id="github-sidebar" class="fixed left-0 top-0 h-full z-[99999] hidden transition-transform duration-300 -translate-x-64 hover:translate-x-0">
         <!-- 메인 패널 (화이트 테마) -->
         <div class="w-64 bg-white border-r border-slate-200 h-full shadow-[4px_0_24px_rgba(0,0,0,0.08)] flex flex-col">
             <div class="p-4 bg-slate-50 border-b border-slate-200 font-bold flex items-center space-x-2 text-slate-800 text-sm">
@@ -167,7 +167,15 @@
                 </div>
 
                 <div class="flex items-center space-x-2">
+                    <!-- 🌟 관리자 도구 모음 -->
                     <div id="hidden-admin-buttons" class="hidden items-center space-x-2 bg-emerald-50/80 p-1.5 rounded-xl border border-emerald-200 animate-pulse">
+                        
+                        <!-- 🌟 일반 모드에서 깃허브 패널을 띄울지 여부 설정 체크박스 -->
+                        <label class="bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 shadow-sm transition flex items-center space-x-1.5 cursor-pointer" title="일반 팀원들에게 깃허브 패널 표시 여부 설정">
+                            <input type="checkbox" id="admin-github-toggle" onchange="updateGithubVisibilitySetting(this.checked)" class="rounded text-emerald-600 focus:ring-emerald-500 w-3.5 h-3.5 cursor-pointer">
+                            <span class="hidden sm:inline">일반모드 깃허브 노출</span>
+                        </label>
+
                         <label class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg shadow-sm transition flex items-center space-x-1.5 cursor-pointer" title="엑셀 일정 덮어쓰기 업로드">
                             <i class="fa-solid fa-file-excel"></i>
                             <span class="hidden sm:inline">엑셀 업로드</span>
@@ -534,12 +542,40 @@
         let contextTargetEventId = null;
         let contextTargetDateStr = null;
 
+        // 🌟 일반 모드에서 깃허브 패널을 띄울지 여부 (로컬 저장소)
+        let isGithubPanelVisibleForNormal = localStorage.getItem('s2_github_panel_visible') === 'true';
+
         const offsetRef = ref(db, '.info/serverTimeOffset');
         onValue(offsetRef, (snap) => {
             window.serverTimeOffset = snap.val() || 0;
         });
 
-        // 🌟 화이트 테마가 적용된 GitHub 프로젝트 로딩 함수
+        // 🌟 패널 상태 렌더링 함수
+        function applyGithubPanelState(isAdmin) {
+            const sidebar = document.getElementById('github-sidebar');
+            // 관리자 모드이거나, 일반 사용자용으로 켜져있다면 표시
+            if (isAdmin || isGithubPanelVisibleForNormal) {
+                sidebar.classList.remove('hidden');
+                sidebar.classList.add('flex');
+            } else {
+                sidebar.classList.add('hidden');
+                sidebar.classList.remove('flex');
+            }
+        }
+
+        // 🌟 체크박스 토글 함수: 일반 모드 설정 업데이트
+        window.updateGithubVisibilitySetting = function(show) {
+            isGithubPanelVisibleForNormal = show;
+            localStorage.setItem('s2_github_panel_visible', show);
+            
+            // 현재 상태가 관리자 모드인지 체크
+            const adminDiv = document.getElementById('hidden-admin-buttons');
+            const isAdmin = !adminDiv.classList.contains('hidden');
+            
+            applyGithubPanelState(isAdmin);
+            showToast(show ? '일반 모드에서도 깃허브 패널이 표시됩니다.' : '일반 모드에서는 깃허브 패널이 숨겨집니다.', 'success');
+        };
+
         async function fetchGitHubRepos() {
             const listContainer = document.getElementById('github-repo-list');
             try {
@@ -635,6 +671,11 @@
                 const adminDiv = document.getElementById('hidden-admin-buttons');
                 adminDiv.classList.remove('hidden');
                 adminDiv.classList.add('flex');
+
+                // 🌟 관리자 모드 진입 시 패널 무조건 표시 및 체크박스 상태 동기화
+                document.getElementById('admin-github-toggle').checked = isGithubPanelVisibleForNormal;
+                applyGithubPanelState(true);
+
                 showToast('관리자 인증이 완료되었습니다!', 'success');
             } else {
                 showToast('비밀번호가 일치하지 않습니다.', 'error');
@@ -647,6 +688,10 @@
             const adminDiv = document.getElementById('hidden-admin-buttons');
             adminDiv.classList.remove('flex');
             adminDiv.classList.add('hidden');
+
+            // 🌟 관리자 모드 종료 시 일반 사용자용 설정값(체크박스 값)으로 되돌아가기
+            applyGithubPanelState(false);
+
             showToast('관리자 메뉴가 숨겨졌습니다.', 'info');
         };
 
@@ -961,6 +1006,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             startLiveClock();
             fetchGitHubRepos(); 
+            
+            // 🌟 페이지 처음 열었을 때 초기 상태 적용 (기본은 관리자가 아니므로 false 넘김)
+            applyGithubPanelState(false); 
 
             onValue(groupsRef, (snapshot) => {
                 const data = snapshot.val();
