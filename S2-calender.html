@@ -351,7 +351,8 @@
                         <label class="block text-xs font-semibold text-slate-600 mb-1">담당 주체</label>
                         <!-- 검색 가능한 커스텀 드롭다운으로 변경 -->
                         <div class="relative group">
-                            <input type="text" id="f-member-search" placeholder="검색 및 선택" required readonly class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer" onclick="document.getElementById('f-member-list').classList.toggle('hidden')" oninput="filterMemberDropdown()">
+                            <!-- readonly 삭제, autocomplete="off", cursor-text 변경 적용 -->
+                            <input type="text" id="f-member-search" placeholder="검색 및 선택" required autocomplete="off" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-text" onclick="document.getElementById('f-member-list').classList.remove('hidden')" oninput="filterMemberDropdown()">
                             <input type="hidden" id="f-member" onchange="onEntityChange()" required>
                             <div id="f-member-list" class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto hidden">
                             </div>
@@ -542,7 +543,6 @@
         let contextTargetEventId = null;
         let contextTargetDateStr = null;
 
-        // 🌟 일반 모드에서 깃허브 패널을 띄울지 여부 (로컬 저장소)
         let isGithubPanelVisibleForNormal = localStorage.getItem('s2_github_panel_visible') === 'true';
 
         const offsetRef = ref(db, '.info/serverTimeOffset');
@@ -550,10 +550,8 @@
             window.serverTimeOffset = snap.val() || 0;
         });
 
-        // 🌟 패널 상태 렌더링 함수
         function applyGithubPanelState(isAdmin) {
             const sidebar = document.getElementById('github-sidebar');
-            // 관리자 모드이거나, 일반 사용자용으로 켜져있다면 표시
             if (isAdmin || isGithubPanelVisibleForNormal) {
                 sidebar.classList.remove('hidden');
                 sidebar.classList.add('flex');
@@ -563,12 +561,10 @@
             }
         }
 
-        // 🌟 체크박스 토글 함수: 일반 모드 설정 업데이트
         window.updateGithubVisibilitySetting = function(show) {
             isGithubPanelVisibleForNormal = show;
             localStorage.setItem('s2_github_panel_visible', show);
             
-            // 현재 상태가 관리자 모드인지 체크
             const adminDiv = document.getElementById('hidden-admin-buttons');
             const isAdmin = !adminDiv.classList.contains('hidden');
             
@@ -672,7 +668,6 @@
                 adminDiv.classList.remove('hidden');
                 adminDiv.classList.add('flex');
 
-                // 🌟 관리자 모드 진입 시 패널 무조건 표시 및 체크박스 상태 동기화
                 document.getElementById('admin-github-toggle').checked = isGithubPanelVisibleForNormal;
                 applyGithubPanelState(true);
 
@@ -689,7 +684,6 @@
             adminDiv.classList.remove('flex');
             adminDiv.classList.add('hidden');
 
-            // 🌟 관리자 모드 종료 시 일반 사용자용 설정값(체크박스 값)으로 되돌아가기
             applyGithubPanelState(false);
 
             showToast('관리자 메뉴가 숨겨졌습니다.', 'info');
@@ -1007,7 +1001,6 @@
             startLiveClock();
             fetchGitHubRepos(); 
             
-            // 🌟 페이지 처음 열었을 때 초기 상태 적용 (기본은 관리자가 아니므로 false 넘김)
             applyGithubPanelState(false); 
 
             onValue(groupsRef, (snapshot) => {
@@ -1712,9 +1705,13 @@
             document.getElementById('f-member-list').classList.remove('hidden');
             
             options.forEach(opt => {
-                const text = opt.innerText.toLowerCase();
+                // innerText 대신 순수 이름 값(dataset.value)으로 정확도 높은 필터링 적용
+                const text = opt.dataset.value.toLowerCase();
                 opt.style.display = text.includes(keyword) ? 'block' : 'none';
             });
+            
+            // 사용자가 검색어를 변경 중일 경우, 숨겨진 폼 값을 초기화하여 강제로 목록에서 클릭하게 유도
+            document.getElementById('f-member').value = '';
         };
 
         window.onEntityChange = function() {
@@ -2120,7 +2117,7 @@
             const id = document.getElementById('event-id').value; 
             
             const member = document.getElementById('f-member').value;
-            if(!member) return showToast('담당 주체를 검색 후 선택해주세요.', 'error');
+            if(!member) return showToast('담당 주체를 검색 후 정확히 선택해주세요.', 'error');
             
             const category = document.getElementById('f-category').value;
             const title = document.getElementById('f-title').value;
