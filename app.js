@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, set, onValue, push, update, remove, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// 🔐 [보안 필수]: GitHub 업로드 후 Google Cloud Console에서 해당 API 키에 대해 리퍼러 제한을 설정하세요.
 const firebaseConfig = {
     apiKey: "AIzaSyBANvp_Se4n59yHcT9JvXyE-KN7cRIz_Go",
     authDomain: "sd-asset-manager.firebaseapp.com",
@@ -42,7 +41,6 @@ let contextTargetDateStr = null;
 let isGithubPanelVisibleForNormal = localStorage.getItem('s2_github_panel_visible') === 'true';
 let searchDebounceTimer;
 
-// 🌟 아카이브 관련 상태 변수
 let isArchiveMode = false;
 let archiveDataCache = null;
 
@@ -51,7 +49,6 @@ onValue(offsetRef, (snap) => {
     window.serverTimeOffset = snap.val() || 0;
 });
 
-// 🛠️ 공통 날짜 도우미 함수 (코드 다이어트)
 function formatYMD(date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
@@ -62,7 +59,6 @@ function addDays(dateStr, days) {
     return formatYMD(date);
 }
 
-// 🇰🇷 향후 5년치 법정 공휴일 하드코딩 (외부 API 장애 완벽 차단)
 const hardcodedHolidays = {
     '2024-01-01': '신정', '2024-02-09': '설연휴', '2024-02-10': '설날', '2024-02-11': '설연휴', '2024-02-12': '대체공휴일', '2024-03-01': '삼일절', '2024-05-05': '어린이날', '2024-05-06': '대체공휴일', '2024-05-15': '부처님오신날', '2024-06-06': '현충일', '2024-08-15': '광복절', '2024-09-16': '추석연휴', '2024-09-17': '추석', '2024-09-18': '추석연휴', '2024-10-03': '개천절', '2024-10-09': '한글날', '2024-12-25': '기독탄신일',
     '2025-01-01': '신정', '2025-01-28': '설연휴', '2025-01-29': '설날', '2025-01-30': '설연휴', '2025-03-03': '대체공휴일', '2025-05-05': '어린이날', '2025-05-06': '부처님오신날', '2025-06-06': '현충일', '2025-08-15': '광복절', '2025-10-03': '개천절', '2025-10-06': '추석연휴', '2025-10-07': '추석연휴', '2025-10-08': '대체공휴일', '2025-10-09': '한글날', '2025-12-25': '기독탄신일',
@@ -70,7 +66,6 @@ const hardcodedHolidays = {
     '2027-01-01': '신정', '2027-02-06': '설연휴', '2027-02-07': '설날', '2027-02-08': '설연휴', '2027-02-09': '대체공휴일', '2027-03-01': '삼일절', '2027-05-05': '어린이날', '2027-05-13': '부처님오신날', '2027-06-06': '현충일', '2027-06-07': '대체공휴일', '2027-08-15': '광복절', '2027-08-16': '대체공휴일', '2027-09-14': '추석연휴', '2027-09-15': '추석', '2027-09-16': '추석연휴', '2027-10-03': '개천절', '2027-10-04': '대체공휴일', '2027-10-09': '한글날', '2027-10-11': '대체공휴일', '2027-12-25': '기독탄신일'
 };
 
-// 🌟 2년 전 데이터 백그라운드 자동 아카이빙 로직
 async function checkAndArchiveOldData(data) {
     if (!data) return;
     const currentYear = new Date().getFullYear();
@@ -92,67 +87,55 @@ async function checkAndArchiveOldData(data) {
     if (archiveCount > 0) {
         try {
             await update(ref(db), updates);
-            console.log(`[Auto-Archive] 오래된 데이터 ${archiveCount}건이 ${thresholdYear}년 보관함으로 자동 압축 이동되었습니다.`);
-        } catch(e) {
-            console.error('Archive Error:', e);
-        }
+        } catch(e) {}
     }
 }
 
-// 🌟 과거 기록 불러오기 모달 제어
 window.openArchiveModal = async function() {
     try {
         const snapshot = await get(ref(db, 's2_team_archive'));
         const archiveData = snapshot.val();
         if (!archiveData) {
-            showToast('보관된 과거 기록(로그)이 존재하지 않습니다.', 'info');
+            showToast('보관된 과거 기록이 없습니다.', 'info');
             return;
         }
-        
         const years = Object.keys(archiveData).sort((a, b) => b - a);
         const select = document.getElementById('archive-year-select');
+        if (!select) return;
         select.innerHTML = '';
-        
         years.forEach(y => {
             const opt = document.createElement('option');
             opt.value = y;
             opt.textContent = `${y}년 기록`;
             select.appendChild(opt);
         });
-        
         document.getElementById('archive-modal').classList.remove('hidden');
     } catch (e) {
-        showToast('과거 기록을 조회할 수 없습니다.', 'error');
+        showToast('과거 기록 조회 불가', 'error');
     }
 };
 
-window.closeArchiveModal = function() {
-    document.getElementById('archive-modal').classList.add('hidden');
-};
+window.closeArchiveModal = function() { document.getElementById('archive-modal').classList.add('hidden'); };
 
 window.loadArchiveData = async function() {
     const year = document.getElementById('archive-year-select').value;
     if (!year) return;
-    
     try {
         const snapshot = await get(ref(db, `s2_team_archive/${year}`));
         const data = snapshot.val();
         if (data) {
             isArchiveMode = true;
             archiveDataCache = data;
-            
             document.getElementById('archive-banner').classList.remove('hidden');
             document.getElementById('archive-banner-text').innerText = `${year}년 과거 기록 조회 모드`;
-            
             closeArchiveModal();
             calendar.gotoDate(new Date(year, 0, 1));
             calendar.setOption('editable', false);
-            
             renderCalendarData();
-            showToast(`${year}년 기록을 불러왔습니다. (조회 전용)`, 'success');
+            showToast(`${year}년 기록 로드 완료 (조회 전용)`, 'success');
         }
     } catch (e) {
-        showToast('기록을 불러오는 중 오류가 발생했습니다.', 'error');
+        showToast('오류 발생', 'error');
     }
 };
 
@@ -163,7 +146,7 @@ window.exitArchiveMode = function() {
     calendar.setOption('editable', true);
     calendar.today();
     renderCalendarData();
-    showToast('실시간 달력으로 복귀했습니다.', 'success');
+    showToast('실시간 달력 복귀', 'success');
 };
 
 window.debouncedRender = function() {
@@ -177,6 +160,7 @@ window.debouncedMemberFilter = function() {
 
 function applyGithubPanelState(isAdmin) {
     const sidebar = document.getElementById('github-sidebar');
+    if (!sidebar) return;
     if (isAdmin || isGithubPanelVisibleForNormal) {
         sidebar.classList.remove('hidden');
         sidebar.classList.add('flex');
@@ -190,13 +174,14 @@ window.updateGithubVisibilitySetting = function(show) {
     isGithubPanelVisibleForNormal = show;
     localStorage.setItem('s2_github_panel_visible', show);
     const adminDiv = document.getElementById('hidden-admin-buttons');
-    const isAdmin = !adminDiv.classList.contains('hidden');
+    const isAdmin = adminDiv && !adminDiv.classList.contains('hidden');
     applyGithubPanelState(isAdmin);
-    showToast(show ? '일반 모드에서도 깃허브 패널이 표시됩니다.' : '일반 모드에서는 깃허브 패널이 숨겨집니다.', 'success');
+    showToast(show ? '일반 모드 깃허브 노출 ON' : '일반 모드 깃허브 노출 OFF', 'success');
 };
 
 async function fetchGitHubRepos() {
     const listContainer = document.getElementById('github-repo-list');
+    if (!listContainer) return; // 👈 철저한 안전장치 적용
     try {
         const response = await fetch('https://api.github.com/users/johnorpark123-ship-it/repos?sort=updated');
         const repos = await response.json();
@@ -210,12 +195,13 @@ async function fetchGitHubRepos() {
             listContainer.appendChild(a);
         });
     } catch (error) {
-        listContainer.innerHTML = '<div class="p-2 text-xs text-rose-400 text-center">목록을 불러오지 못했습니다.</div>';
+        listContainer.innerHTML = '<div class="p-2 text-xs text-rose-400 text-center">목록 로드 실패</div>';
     }
 }
 
 window.showToast = function(msg, type = 'info') {
     const container = document.getElementById('toast-container');
+    if (!container) return;
     const toast = document.createElement('div');
     const bgColor = type === 'success' ? 'bg-emerald-600' : (type === 'error' ? 'bg-rose-500' : 'bg-slate-800');
     const icon = type === 'success' ? 'fa-check-circle' : (type === 'error' ? 'fa-circle-exclamation' : 'fa-circle-info');
@@ -232,7 +218,9 @@ window.showToast = function(msg, type = 'info') {
 window.showConfirm = function(msg) {
     return new Promise(resolve => {
         const modal = document.getElementById('custom-confirm-modal');
-        document.getElementById('custom-confirm-msg').innerText = msg;
+        const msgEl = document.getElementById('custom-confirm-msg');
+        if (!modal || !msgEl) { resolve(confirm(msg)); return; }
+        msgEl.innerText = msg;
         modal.classList.remove('hidden');
 
         const btnOk = document.getElementById('custom-confirm-ok');
@@ -254,14 +242,18 @@ window.showConfirm = function(msg) {
 };
 
 window.copyToClipboard = function(text) {
-    navigator.clipboard.writeText(text).then(() => showToast('경로가 클립보드에 복사되었습니다.', 'success')).catch(() => showToast('복사에 실패했습니다.', 'error'));
+    navigator.clipboard.writeText(text).then(() => showToast('복사 완료', 'success')).catch(() => showToast('복사 실패', 'error'));
 };
 
 window.handleHiddenTrigger = function(e) {
     if (e.ctrlKey && e.altKey && e.shiftKey) {
-        document.getElementById('admin-login-modal').classList.remove('hidden');
-        document.getElementById('admin-pw-input').value = '';
-        setTimeout(() => document.getElementById('admin-pw-input').focus(), 100);
+        const modal = document.getElementById('admin-login-modal');
+        const pwInput = document.getElementById('admin-pw-input');
+        if (modal && pwInput) {
+            modal.classList.remove('hidden');
+            pwInput.value = '';
+            setTimeout(() => pwInput.focus(), 100);
+        }
     }
 };
 
@@ -279,9 +271,9 @@ window.handleAdminLoginSubmit = function(e) {
         adminDiv.classList.add('flex');
         document.getElementById('admin-github-toggle').checked = isGithubPanelVisibleForNormal;
         applyGithubPanelState(true);
-        showToast('관리자 인증이 완료되었습니다!', 'success');
+        showToast('관리자 인증 완료', 'success');
     } else {
-        showToast('비밀번호가 일치하지 않습니다.', 'error');
+        showToast('비밀번호 불일치', 'error');
         document.getElementById('admin-pw-input').value = '';
         document.getElementById('admin-pw-input').focus();
     }
@@ -289,26 +281,27 @@ window.handleAdminLoginSubmit = function(e) {
 
 window.hideAdminMenu = function() {
     const adminDiv = document.getElementById('hidden-admin-buttons');
+    if (!adminDiv) return;
     adminDiv.classList.remove('flex');
     adminDiv.classList.add('hidden');
     applyGithubPanelState(false);
-    showToast('관리자 메뉴가 숨겨졌습니다.', 'info');
+    showToast('관리자 메뉴 숨김', 'info');
 };
 
 window.changeLockTimeoutSetting = function() {
     const currentMin = lockTimeoutMinutes;
-    const input = prompt(`미리보기 고정 유지 시간을 설정하세요 (분 단위).\n현재 설정: ${currentMin}분`, currentMin);
+    const input = prompt(`미리보기 고정 유지 시간(분):\n현재 설정: ${currentMin}분`, currentMin);
     if (input !== null) {
         const val = parseInt(input.trim(), 10);
         if (!isNaN(val) && val > 0) {
             lockTimeoutMinutes = val;
             localStorage.setItem('s2_lock_timeout_min', val);
-            showToast(`고정 시간이 ${val}분으로 설정되었습니다.`, 'success');
+            showToast(`고정 시간 ${val}분 설정`, 'success');
             if (lockedEventId && calendar) {
                 const evt = calendar.getEventById(lockedEventId);
                 if (evt) renderPreviewBox(evt);
             }
-        } else showToast('올바른 숫자를 입력해주세요.', 'error');
+        } else showToast('숫자를 입력하세요.', 'error');
     }
 };
 
@@ -363,10 +356,13 @@ window.openDatePickerModal = function() {
     initDatePickerOptions();
     if (calendar) {
         const currentDate = calendar.getDate();
-        document.getElementById('picker-year').value = currentDate.getFullYear();
-        document.getElementById('picker-month').value = currentDate.getMonth();
+        const ySel = document.getElementById('picker-year');
+        const mSel = document.getElementById('picker-month');
+        if (ySel) ySel.value = currentDate.getFullYear();
+        if (mSel) mSel.value = currentDate.getMonth();
     }
-    document.getElementById('date-picker-modal').classList.remove('hidden');
+    const modal = document.getElementById('date-picker-modal');
+    if (modal) modal.classList.remove('hidden');
 };
 window.closeDatePickerModal = function() { document.getElementById('date-picker-modal').classList.add('hidden'); };
 window.applyDatePicker = function() {
@@ -522,35 +518,40 @@ window.handleExcelUpload = async function(e) {
         });
 
         if (processedCount > 0) {
-            if (await showConfirm(`엑셀 파일에서 총 ${processedCount}건의 일정을 파싱했습니다. 반영하시겠습니까?`)) {
+            if (await showConfirm(`엑셀 파일에서 총 ${processedCount}건 파싱. 반영하시겠습니까?`)) {
                 lastBackupData = rawCalendarData ? JSON.parse(JSON.stringify(rawCalendarData)) : {};
-                document.getElementById('undo-btn').removeAttribute('disabled');
+                const undoBtn = document.getElementById('undo-btn');
+                if (undoBtn) undoBtn.removeAttribute('disabled');
                 update(ref(db), updates).then(() => {
-                    e.target.value = ''; showToast('엑셀 데이터가 성공적으로 반영되었습니다.', 'success');
-                }).catch(() => showToast('반영 중 오류가 발생했습니다.', 'error'));
+                    e.target.value = ''; showToast('엑셀 반영 완료', 'success');
+                }).catch(() => showToast('반영 오류', 'error'));
             } else e.target.value = '';
         } else {
-            showToast('파싱된 일정이 없습니다.', 'error'); e.target.value = '';
+            showToast('파싱된 일정 없음', 'error'); e.target.value = '';
         }
     };
     reader.readAsArrayBuffer(file);
 };
 
 window.undoExcelUpload = async function() {
-    if (!lastBackupData) return showToast('되돌릴 수 있는 기록이 없습니다.', 'error');
-    if (await showConfirm('가장 최근 업로드 전 상태로 되돌리시겠습니까?')) {
+    if (!lastBackupData) return showToast('되돌릴 기록 없음', 'error');
+    if (await showConfirm('직전 업로드 전 상태로 되돌리시겠습니까?')) {
         set(calendarRef, lastBackupData).then(() => {
-            lastBackupData = null; document.getElementById('undo-btn').setAttribute('disabled', 'true');
-            showToast('되돌리기 완료되었습니다.', 'success');
+            lastBackupData = null; 
+            const undoBtn = document.getElementById('undo-btn');
+            if (undoBtn) undoBtn.setAttribute('disabled', 'true');
+            showToast('되돌리기 완료', 'success');
         }).catch(() => showToast('오류 발생', 'error'));
     }
 };
 
 window.resetCalendarData = async function() {
-    if (await showConfirm('정말로 모든 일정을 초기화하시겠습니까? (공휴일만 남습니다)')) {
+    if (await showConfirm('모든 일정을 초기화하시겠습니까? (공휴일만 남음)')) {
         set(calendarRef, null).then(() => {
-            lastBackupData = null; document.getElementById('undo-btn').setAttribute('disabled', 'true');
-            showToast('일정이 초기화되었습니다.', 'success');
+            lastBackupData = null; 
+            const undoBtn = document.getElementById('undo-btn');
+            if (undoBtn) undoBtn.setAttribute('disabled', 'true');
+            showToast('일정 초기화 완료', 'success');
         }).catch(() => showToast('오류 발생', 'error'));
     }
 };
@@ -559,7 +560,8 @@ document.addEventListener('click', (event) => {
     const filterContainer = document.getElementById('filter-container');
     const dropdown = document.getElementById('filter-dropdown');
     if (filterContainer && dropdown && !filterContainer.contains(event.target)) dropdown.classList.add('hidden');
-    document.getElementById('custom-context-menu').classList.add('hidden');
+    const ctxMenu = document.getElementById('custom-context-menu');
+    if (ctxMenu) ctxMenu.classList.add('hidden');
     const memberSearch = document.getElementById('f-member-search');
     const memberList = document.getElementById('f-member-list');
     if (memberSearch && memberList && event.target !== memberSearch && !memberList.contains(event.target)) memberList.classList.add('hidden');
@@ -567,7 +569,8 @@ document.addEventListener('click', (event) => {
 
 window.toggleFilterDropdown = function(event) {
     if (event) event.stopPropagation();
-    document.getElementById('filter-dropdown').classList.toggle('hidden');
+    const dropdown = document.getElementById('filter-dropdown');
+    if (dropdown) dropdown.classList.toggle('hidden');
 };
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -599,6 +602,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     const calendarEl = document.getElementById('calendar');
+    if (!calendarEl) return;
+
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth', locale: 'ko',
         customButtons: {
@@ -673,6 +678,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 contextTargetEventId = info.event.id;
                 contextTargetDateStr = info.event.startStr.split('T')[0];
                 const menu = document.getElementById('custom-context-menu');
+                if (!menu) return;
                 document.getElementById('ctx-add-btn').classList.remove('hidden');
                 document.getElementById('ctx-edit-btn').classList.remove('hidden');
                 document.getElementById('ctx-delete-btn').classList.remove('hidden');
@@ -700,6 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (dateStr) {
                 contextTargetEventId = null; contextTargetDateStr = dateStr;
                 const menu = document.getElementById('custom-context-menu');
+                if (!menu) return;
                 document.getElementById('ctx-add-btn').classList.remove('hidden');
                 document.getElementById('ctx-edit-btn').classList.add('hidden');
                 document.getElementById('ctx-delete-btn').classList.add('hidden');
@@ -746,7 +753,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 window.handleContextAdd = function() {
-    if(isArchiveMode) return showToast('과거 기록 조회 모드에서는 수정이 불가합니다.', 'error');
+    if(isArchiveMode) return showToast('조회 모드에서는 수정 불가', 'error');
     document.getElementById('custom-context-menu').classList.add('hidden');
     openEventModal();
     if (contextTargetDateStr) {
@@ -756,13 +763,13 @@ window.handleContextAdd = function() {
 };
 
 window.handleContextEdit = function() {
-    if(isArchiveMode) return showToast('과거 기록 조회 모드에서는 수정이 불가합니다.', 'error');
+    if(isArchiveMode) return showToast('조회 모드에서는 수정 불가', 'error');
     document.getElementById('custom-context-menu').classList.add('hidden');
     if (contextTargetEventId) editEventFromPreview(contextTargetEventId);
 };
 
 window.handleContextDelete = function() {
-    if(isArchiveMode) return showToast('과거 기록 조회 모드에서는 수정이 불가합니다.', 'error');
+    if(isArchiveMode) return showToast('조회 모드에서는 수정 불가', 'error');
     document.getElementById('custom-context-menu').classList.add('hidden');
     if (contextTargetEventId) {
         document.getElementById('event-id').value = contextTargetEventId; handleEventDelete();
@@ -876,7 +883,7 @@ function renderPreviewBox(evt) {
         }
     }
 
-    const comment = evt.extendedProps.comment || '등록된 코멘트가 없습니다.';
+    const comment = evt.extendedProps.comment || '코멘트 없음';
     const urlData = evt.extendedProps.url || '';
     const subMembers = evt.extendedProps.subMembers || [];
 
@@ -898,14 +905,14 @@ function renderPreviewBox(evt) {
         if (lines.length > 0) {
             urlHtml = `<div class="mt-2 pt-2 border-t border-slate-100 space-y-1.5"><span class="font-semibold text-slate-500 block">관련 링크</span>`;
             lines.forEach((line) => {
-                let linkTitle = "관련 링크"; let linkVal = line;
+                let linkTitle = "링크"; let linkVal = line;
                 if (line.includes('|')) { const parts = line.split('|'); linkTitle = parts[0].trim(); linkVal = parts[1].trim(); }
                 if (isWebUrl(linkVal)) {
                     const safeHref = formatWebUrl(linkVal);
                     urlHtml += `<a href="${safeHref}" target="_blank" class="block bg-blue-50/60 hover:bg-blue-100/60 border border-blue-100 p-2 rounded-lg transition text-[11px]"><div class="font-bold text-blue-800 flex items-center space-x-1"><i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i><span>${linkTitle}</span></div><div class="text-blue-600 truncate mt-0.5">${linkVal}</div></a>`;
                 } else {
                     const escapedVal = linkVal.replace(/\\/g, '\\\\');
-                    urlHtml += `<div class="bg-slate-50 border border-slate-200 p-2 rounded-lg flex items-center justify-between text-[11px] gap-2"><div class="overflow-hidden flex-1"><div class="font-bold text-slate-700">${linkTitle}</div><div class="text-slate-500 truncate mt-0.5 select-all" title="로컬 경로">${linkVal}</div></div><button type="button" onclick="copyToClipboard('${escapedVal}')" class="shrink-0 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 w-7 h-7 rounded flex items-center justify-center transition" title="경로 복사"><i class="fa-regular fa-copy"></i></button></div>`;
+                    urlHtml += `<div class="bg-slate-50 border border-slate-200 p-2 rounded-lg flex items-center justify-between text-[11px] gap-2"><div class="overflow-hidden flex-1"><div class="font-bold text-slate-700">${linkTitle}</div><div class="text-slate-500 truncate mt-0.5 select-all">${linkVal}</div></div><button type="button" onclick="copyToClipboard('${escapedVal}')" class="shrink-0 bg-white border border-slate-200 hover:bg-slate-100 text-slate-600 w-7 h-7 rounded flex items-center justify-center transition" title="경로 복사"><i class="fa-regular fa-copy"></i></button></div>`;
                 }
             });
             urlHtml += `</div>`;
@@ -913,9 +920,12 @@ function renderPreviewBox(evt) {
     }
 
     if (lockedEventId === evt.id) {
-        document.getElementById('left-panel-header-title').innerText = "고정된 일정 정보";
-        document.getElementById('panel-indicator').className = "w-2 h-2 rounded-full bg-purple-500 animate-ping";
-        document.getElementById('left-panel-unlock-btn').classList.remove('hidden');
+        const titleEl = document.getElementById('left-panel-header-title');
+        const indicatorEl = document.getElementById('panel-indicator');
+        const unlockBtn = document.getElementById('left-panel-unlock-btn');
+        if (titleEl) titleEl.innerText = "고정된 일정 정보";
+        if (indicatorEl) indicatorEl.className = "w-2 h-2 rounded-full bg-purple-500 animate-ping";
+        if (unlockBtn) unlockBtn.classList.remove('hidden');
     }
 
     let badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-bold text-white shadow-sm" style="background-color: ${evt.backgroundColor || '#059669'};">${member}</span>`;
@@ -952,7 +962,8 @@ window.editEventFromPreview = function(eventId) {
     const evt = calendar.getEventById(eventId);
     if (!evt) return;
 
-    document.getElementById('modal-title').innerText = "일정 수정"; document.getElementById('event-id').value = evt.id;
+    document.getElementById('modal-title').innerText = "일정 수정"; 
+    document.getElementById('event-id').value = evt.id;
     let catValue = evt.extendedProps.category;
     if (!catValue) {
         if(evt.extendedProps.rawTitle && (evt.extendedProps.rawTitle.includes('연차') || evt.extendedProps.rawTitle.includes('반차'))) catValue = '휴가';
@@ -978,7 +989,8 @@ window.editEventFromPreview = function(eventId) {
     }
 
     const assignedEntity = evt.extendedProps.member || '박문기';
-    document.getElementById('f-member-search').value = assignedEntity; document.getElementById('f-member').value = assignedEntity;
+    document.getElementById('f-member-search').value = assignedEntity; 
+    document.getElementById('f-member').value = assignedEntity;
     document.getElementById('f-start').value = evt.startStr.split('T')[0];
     
     if (evt.end) {
@@ -1001,7 +1013,8 @@ window.editEventFromPreview = function(eventId) {
     }
     renderUrlFields(linkItems.length > 0 ? linkItems : [{ title: '', url: '' }]);
 
-    document.getElementById('modal-delete-btn').classList.remove('hidden'); document.getElementById('event-modal').classList.remove('hidden');
+    document.getElementById('modal-delete-btn').classList.remove('hidden'); 
+    document.getElementById('event-modal').classList.remove('hidden');
 };
 
 window.deleteEventFromPreview = function(eventId) { document.getElementById('event-id').value = eventId; handleEventDelete(); };
@@ -1062,7 +1075,7 @@ window.autoFillLeaveTitle = function(radioElem) {
 
 function renderMemberSelect() {
     const listContainer = document.getElementById('f-member-list'); 
-    if (!listContainer) return; // 👈 에러 방지용 안전장치
+    if (!listContainer) return;
     
     listContainer.innerHTML = '';
     const allEntities = [];
@@ -1366,21 +1379,21 @@ window.saveMember = function() {
     const nameInput = document.getElementById('new-member-name');
     if (!nameInput) return;
     const name = nameInput.value.trim();
-    if (!name) return showToast('팀원 이름을 입력해주세요.', 'error');
+    if (!name) return showToast('팀원 이름을 입력하세요.', 'error');
     if (editingMemberId) {
         update(ref(db, 's2_team_members/' + editingMemberId), { name }).then(() => {
-            showToast('팀원 정보가 수정되었습니다.', 'success'); cancelEditMember();
+            showToast('팀원 수정 완료', 'success'); cancelEditMember();
         });
     } else {
         push(membersRef, { name, isResigned: false }).then(() => {
-            showToast('새 팀원이 추가되었습니다.', 'success'); nameInput.value = '';
+            showToast('팀원 추가 완료', 'success'); nameInput.value = '';
         });
     }
 };
 
 window.deleteMember = async function(id) {
-    if (await showConfirm('정말 이 팀원을 삭제하시겠습니까?')) {
-        remove(ref(db, 's2_team_members/' + id)).then(() => showToast('팀원이 삭제되었습니다.', 'success'));
+    if (await showConfirm('이 팀원을 삭제하시겠습니까?')) {
+        remove(ref(db, 's2_team_members/' + id)).then(() => showToast('삭제 완료', 'success'));
     }
 };
 
@@ -1417,7 +1430,7 @@ window.editGroup = function(id, name, color) {
     const titleEl = document.getElementById('group-form-title');
     const nameInput = document.getElementById('new-group-name');
     const cancelBtn = document.getElementById('cancel-group-edit-btn');
-    if (titleEl) titleEl.innerText = "파트 그룹 수정";
+    if (titleEl) titleEl.innerText = "그룹 수정";
     if (nameInput) nameInput.value = name;
     selectedGroupColor = color;
     if (cancelBtn) cancelBtn.classList.remove('hidden');
@@ -1443,24 +1456,24 @@ window.saveGroup = function() {
     const nameInput = document.getElementById('new-group-name');
     if (!nameInput) return;
     const name = nameInput.value.trim();
-    if (!name) return showToast('그룹명을 입력해주세요.', 'error');
+    if (!name) return showToast('그룹명을 입력하세요.', 'error');
     const members = Array.from(document.querySelectorAll('.group-member-cb:checked')).map(cb => cb.value);
 
     if (editingGroupId) {
         update(ref(db, 's2_team_groups/' + editingGroupId), { name, color: selectedGroupColor, members }).then(() => {
-            showToast('그룹이 수정되었습니다.', 'success'); cancelEditGroup();
+            showToast('그룹 수정 완료', 'success'); cancelEditGroup();
         });
     } else {
         push(groupsRef, { name, color: selectedGroupColor, members }).then(() => {
-            showToast('새 그룹이 추가되었습니다.', 'success'); nameInput.value = '';
+            showToast('그룹 추가 완료', 'success'); nameInput.value = '';
             document.querySelectorAll('.group-member-cb').forEach(cb => cb.checked = false);
         });
     }
 };
 
 window.deleteGroup = async function(id) {
-    if (await showConfirm('정말로 이 파트 그룹을 삭제하시겠습니까?')) {
-        remove(ref(db, 's2_team_groups/' + id)).then(() => showToast('그룹이 삭제되었습니다.', 'success'));
+    if (await showConfirm('이 파트 그룹을 삭제하시겠습니까?')) {
+        remove(ref(db, 's2_team_groups/' + id)).then(() => showToast('삭제 완료', 'success'));
     }
 };
 
@@ -1471,7 +1484,7 @@ function updateEventDates(event) {
 }
 
 window.openEventModal = function() {
-    if(isArchiveMode) return showToast('과거 기록 조회 모드에서는 일정을 등록할 수 없습니다.', 'error');
+    if(isArchiveMode) return showToast('조회 모드에서는 등록 불가', 'error');
     const modalTitle = document.getElementById('modal-title');
     const eventIdInput = document.getElementById('event-id');
     const titleInput = document.getElementById('f-title');
@@ -1521,7 +1534,7 @@ window.handleEventSubmit = async function(e) {
 
     const id = idInput ? idInput.value : ''; 
     const member = memberInput.value;
-    if(!member) return showToast('담당 주체를 검색 후 정확히 선택해주세요.', 'error');
+    if(!member) return showToast('담당 주체를 정확히 선택하세요.', 'error');
     
     const category = categoryInput.value; 
     const title = titleInput.value;
@@ -1536,7 +1549,7 @@ window.handleEventSubmit = async function(e) {
     rows.forEach(row => {
         const tVal = row.querySelector('.url-title-input')?.value.trim() || ''; 
         const uVal = row.querySelector('.url-input-item')?.value.trim() || '';
-        if (uVal !== '') urlLines.push(`${tVal !== '' ? tVal : '관련 링크'}|${uVal}`);
+        if (uVal !== '') urlLines.push(`${tVal !== '' ? tVal : '링크'}|${uVal}`);
     });
     const url = urlLines.join('\n');
     const startStr = startInput.value; 
@@ -1569,13 +1582,13 @@ window.handleEventSubmit = async function(e) {
                 }
                 currDate.setDate(currDate.getDate() + 1);
             }
-            update(ref(db), updates).then(() => { showToast('일정이 연속 일정으로 수정되었습니다.', 'success'); closeEventModal(); });
+            update(ref(db), updates).then(() => { showToast('연속 일정 수정 완료', 'success'); closeEventModal(); });
             return;
         }
 
         const end = addDays(endInputStr, 1);
         const eventData = { member, title, category, comment, url, start: startStr, end, color, subMembers, groupId: existingGroupId };
-        update(ref(db, 's2_team_calendar/' + id), eventData).then(() => { showToast('일정이 수정되었습니다.', 'success'); });
+        update(ref(db, 's2_team_calendar/' + id), eventData).then(() => { showToast('일정 수정 완료', 'success'); });
         closeEventModal(); return;
     }
     
@@ -1593,7 +1606,7 @@ window.handleEventSubmit = async function(e) {
     }
 
     if (createdCount === 0) return showToast('기간 내 평일이 없어 생성할 수 없습니다.', 'error');
-    update(calendarRef, updates).then(() => { showToast(`총 ${createdCount}건의 일정이 등록되었습니다.`, 'success'); closeEventModal(); }).catch(() => showToast('등록 중 오류 발생', 'error'));
+    update(calendarRef, updates).then(() => { showToast(`총 ${createdCount}건 등록 완료`, 'success'); closeEventModal(); }).catch(() => showToast('등록 오류', 'error'));
 };
 
 window.handleEventDelete = async function() {
@@ -1613,7 +1626,7 @@ window.handleEventDelete = async function() {
     }
     const updates = {}; deleteKeys.forEach(k => updates['s2_team_calendar/' + k] = null);
     update(ref(db), updates).then(() => {
-        showToast('일정이 삭제되었습니다.', 'success');
+        showToast('일정 삭제 완료', 'success');
         if (lockedEventId && deleteKeys.includes(lockedEventId)) unlockPreview();
     });
 };
