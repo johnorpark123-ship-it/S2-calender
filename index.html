@@ -6,8 +6,8 @@
     <title>S2팀 일정 캘린더</title>
 
     <!-- 🚀 이 두 줄은 미리 불러오기 태그입니다. -->
-    <link rel="preload" href="style.css" as="style">
-    <link rel="preload" href="app.js" as="script">
+    <link rel="preload" href="style.css?v=1.1" as="style">
+    <link rel="modulepreload" href="app.js?v=1.1">
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,7 +20,7 @@
     <!-- SheetJS (엑셀 파싱용) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- 외부 CSS 연결 -->
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.1">
 </head>
 <body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased selection:bg-emerald-600 selection:text-white relative">
 
@@ -511,6 +511,6 @@
     </div>
 
     <!-- 분리된 JS 모듈 연결 -->
-    <script type="module" src="app.js"></script>
+    <script type="module" src="app.js?v=1.1"></script>
 </body>
 </html>
