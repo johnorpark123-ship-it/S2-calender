@@ -181,7 +181,7 @@ window.updateGithubVisibilitySetting = function(show) {
 
 async function fetchGitHubRepos() {
     const listContainer = document.getElementById('github-repo-list');
-    if (!listContainer) return; // 👈 철저한 안전장치 적용
+    if (!listContainer) return;
     try {
         const response = await fetch('https://api.github.com/users/johnorpark123-ship-it/repos?sort=updated');
         const repos = await response.json();
@@ -1245,8 +1245,17 @@ window.renderCalendarData = function() {
     if (!calendar) return;
     const targetData = isArchiveMode ? archiveDataCache : rawCalendarData;
 
+    const titleKeyword = document.getElementById('filter-title-input')?.value.trim().toLowerCase() || '';
+    const resetBtn = document.getElementById('reset-filter-btn');
+    if (resetBtn) {
+        if (titleKeyword !== '' || selectedMembers.size > 0 || showLeaveEvent) {
+            resetBtn.classList.remove('hidden');
+        } else {
+            resetBtn.classList.add('hidden');
+        }
+    }
+
     if (targetData) {
-        const titleKeyword = document.getElementById('filter-title-input')?.value.trim().toLowerCase() || '';
         const anyMemberSelected = selectedMembers.size > 0;
         const eventsToAdd = [];
         
@@ -1629,4 +1638,22 @@ window.handleEventDelete = async function() {
         showToast('일정 삭제 완료', 'success');
         if (lockedEventId && deleteKeys.includes(lockedEventId)) unlockPreview();
     });
+};
+
+window.resetAllFilters = function() {
+    selectedMembers.clear();
+    showLeaveEvent = false;
+
+    const titleInput = document.getElementById('filter-title-input');
+    const searchInput = document.getElementById('filter-search-input');
+    if (titleInput) titleInput.value = '';
+    if (searchInput) searchInput.value = '';
+
+    renderFilterCheckboxes();
+    renderCalendarData();
+
+    const resetBtn = document.getElementById('reset-filter-btn');
+    if (resetBtn) resetBtn.classList.add('hidden');
+    
+    showToast('필터가 모두 초기화되었습니다.', 'success');
 };
