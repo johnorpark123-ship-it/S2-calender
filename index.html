@@ -5,21 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S2팀 일정 캘린더</title>
 
-    <!-- 🚀 이 두 줄은 미리 불러오기 태그입니다. -->
     <link rel="preload" href="style.css?v=1.1" as="style">
     <link rel="modulepreload" href="app.js?v=1.1">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- FullCalendar JS -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
-    <!-- SheetJS (엑셀 파싱용) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- 외부 CSS 연결 -->
     <link rel="stylesheet" href="style.css?v=1.1">
 </head>
 <body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased selection:bg-emerald-600 selection:text-white relative">
@@ -30,7 +23,6 @@
                 <i class="fa-brands fa-github text-emerald-600 text-lg"></i>
                 <span>S2팀 프로젝트 목록</span>
             </div>
-            <!-- 에러 방지를 위한 github-repo-list ID 필수 포함 -->
             <div id="github-repo-list" class="flex-1 overflow-y-auto p-2 space-y-1 scrollbar-thin">
                 <div class="p-4 text-center text-xs text-slate-500 mt-10">
                     <i class="fa-solid fa-circle-notch fa-spin text-xl mb-2 text-emerald-600"></i><br>프로젝트를 불러오는 중...
@@ -182,10 +174,14 @@
                         <span class="hidden sm:inline">이전 기록</span>
                     </button>
 
-                    <div class="relative" id="filter-container">
+                    <div class="relative flex items-center space-x-2" id="filter-container">
                         <button onclick="toggleFilterDropdown(event)" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg border border-slate-200 transition flex items-center space-x-1.5">
                             <i class="fa-solid fa-filter text-emerald-600"></i>
                             <span class="hidden sm:inline">필터</span>
+                        </button>
+                        <button id="reset-filter-btn" onclick="resetAllFilters()" class="hidden bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold px-3 py-2 rounded-lg border border-rose-200 transition flex items-center space-x-1.5 shadow-sm">
+                            <i class="fa-solid fa-rotate-left"></i>
+                            <span class="hidden sm:inline">초기화</span>
                         </button>
                         <div id="filter-dropdown" class="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-5 z-40 hidden space-y-4" onclick="event.stopPropagation()">
                             <div>
